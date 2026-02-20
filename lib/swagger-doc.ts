@@ -96,13 +96,32 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
 
   defaults(specifications.components!.parameters, blueprintParameterTemplates);
 
+  // Classify tags based on operation types (blueprint CRUD vs custom)
+  const tagHasBlueprint: Record<string, boolean> = {};
+  const tagHasCustom: Record<string, boolean> = {};
+  for (const path in specifications.paths) {
+    const pathDef = specifications.paths[path];
+    for (const verb in pathDef) {
+      const op = pathDef[verb as keyof OpenApi.Path] as OpenApi.Operation & { 'x-blueprint'?: boolean };
+      if (op.tags) {
+        op.tags.forEach(tag => {
+          if (op['x-blueprint']) {
+            tagHasBlueprint[tag] = true;
+          } else {
+            tagHasCustom[tag] = true;
+          }
+        });
+      }
+    }
+  }
+
   // clean up of specification, removing unreferenced tags
   const referencedTags = getUniqueTagsFromPath(specifications.paths);
 
   specifications.tags = specifications.tags!.filter(tagDef => {
     const ret = referencedTags.has(tagDef.name);
     if(!ret) {
-      sails.log.warn(`WARNING: sails-hook-swagger-generator: Tag '${tagDef.name}' defined but not referenced; removing`);
+      sails.log.verbose(`sails-hook-swagger-generator: Tag '${tagDef.name}' defined but not referenced; removing`);
     }
     return ret;
   });
@@ -111,8 +130,25 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
   referencedTags.forEach(tagName => {
     const tagDef = specifications.tags!.find(t => t.name === tagName);
     if(!tagDef) {
-      sails.log.info(`NOTICE: sails-hook-swagger-generator: Tag '${tagName}' referenced but not defined; adding`);
+      sails.log.verbose(`sails-hook-swagger-generator: Tag '${tagName}' referenced but not defined; adding`);
       specifications.tags!.push({ name: tagName } as Tag);
+    }
+  });
+
+  // Update tag descriptions based on classification (after all tags are finalized)
+  specifications.tags!.forEach(tagDef => {
+    // Skip tags with custom descriptions from model swagger config
+    const model = Object.values(models).find(m => m.globalId === tagDef.name);
+    if (model?.swagger?.modelSchema?.description) return;
+
+    const hasCrud = tagHasBlueprint[tagDef.name];
+    const hasCustom = tagHasCustom[tagDef.name];
+    if (hasCrud && hasCustom) {
+      tagDef.description = `Resource: **${tagDef.name}** — CRUD and model-specific endpoints`;
+    } else if (hasCrud) {
+      tagDef.description = `Resource: **${tagDef.name}** — CRUD endpoints`;
+    } else {
+      tagDef.description = `**${tagDef.name}** — domain-specific endpoints`;
     }
   });
 
@@ -124,7 +160,7 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
   if (destPath) {
     try {
       fs.writeFileSync(destPath, JSON.stringify(specifications, null, 2));
-    } catch (e) {
+    } catch (e: any) {
       sails.log.error(`ERROR: sails-hook-swagger-generator: Error writing ${destPath}: ${e.message}`, e);
     }
   }

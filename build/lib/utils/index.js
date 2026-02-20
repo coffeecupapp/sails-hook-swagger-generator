@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.deriveSwaggerTypeFromExample = exports.unrollSchema = exports.resolveRef = exports.getUniqueTagsFromPath = exports.loadSwaggerDocComments = exports.attributeValidations = exports.blueprintActions = void 0;
 var swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
 var lodash_1 = require("lodash");
 var type_formatter_1 = require("../type-formatter");
@@ -41,17 +42,17 @@ exports.attributeValidations = [
     'regex',
     'custom',
 ];
-exports.loadSwaggerDocComments = function (filePath) {
+var loadSwaggerDocComments = function (filePath) {
     return new Promise(function (resolve, reject) {
         try {
             var opts = {
                 definition: {
-                    openapi: '3.0.0',
+                    openapi: '3.1.0',
                     info: { title: 'dummy', version: '0.0.0' },
                 },
                 apis: [filePath],
             };
-            var specification = swagger_jsdoc_1.default(opts);
+            var specification = (0, swagger_jsdoc_1.default)(opts);
             resolve(specification);
         }
         catch (err) {
@@ -59,7 +60,8 @@ exports.loadSwaggerDocComments = function (filePath) {
         }
     });
 };
-exports.getUniqueTagsFromPath = function (paths) {
+exports.loadSwaggerDocComments = loadSwaggerDocComments;
+var getUniqueTagsFromPath = function (paths) {
     var referencedTags = new Set();
     for (var path in paths) {
         var pathDefinition = paths[path];
@@ -72,14 +74,16 @@ exports.getUniqueTagsFromPath = function (paths) {
     }
     return referencedTags;
 };
-exports.resolveRef = function (specification, obj) {
+exports.getUniqueTagsFromPath = getUniqueTagsFromPath;
+var resolveRef = function (specification, obj) {
     var path = obj.$ref;
     if (typeof (path) === 'string' && path.startsWith('#/')) {
         var pathElements = path.substring(2).split('/');
-        return lodash_1.get(specification, pathElements);
+        return (0, lodash_1.get)(specification, pathElements);
     }
     return obj;
 };
+exports.resolveRef = resolveRef;
 /**
  * Provides limited dereferencing, or unrolling, of schemas.
  *
@@ -97,15 +101,16 @@ exports.resolveRef = function (specification, obj) {
  * @param specification
  * @param schema
  */
-exports.unrollSchema = function (specification, schema) {
-    var ret = lodash_1.cloneDeep(exports.resolveRef(specification, schema));
+var unrollSchema = function (specification, schema) {
+    var ret = (0, lodash_1.cloneDeep)((0, exports.resolveRef)(specification, schema));
     if (ret.allOf) {
         var allOf = ret.allOf;
         delete ret.allOf;
-        allOf.map(function (s) { return lodash_1.defaultsDeep(ret, exports.resolveRef(specification, s)); });
+        allOf.map(function (s) { return (0, lodash_1.defaultsDeep)(ret, (0, exports.resolveRef)(specification, s)); });
     }
     return ret;
 };
+exports.unrollSchema = unrollSchema;
 /**
  * Derive Swagger/OpenAPI schema from example value.
  *
@@ -118,7 +123,7 @@ exports.unrollSchema = function (specification, schema) {
  *
  * @param {any} example
  */
-exports.deriveSwaggerTypeFromExample = function (example, recurseToDepth) {
+var deriveSwaggerTypeFromExample = function (example, recurseToDepth) {
     if (recurseToDepth === void 0) { recurseToDepth = 4; }
     var deriveSimpleSwaggerType = function (v) {
         // undefined,boolean,number,bigint,string,symbol,function,object
@@ -145,8 +150,8 @@ exports.deriveSwaggerTypeFromExample = function (example, recurseToDepth) {
     if (Array.isArray(example)) {
         var types_1 = [];
         example.map(function (v) {
-            var t = recurseToDepth > 1 ? exports.deriveSwaggerTypeFromExample(v, recurseToDepth - 1) : deriveSimpleSwaggerType(v);
-            var existing = types_1.find(function (_t) { return lodash_1.isEqual(_t, t); });
+            var t = recurseToDepth > 1 ? (0, exports.deriveSwaggerTypeFromExample)(v, recurseToDepth - 1) : deriveSimpleSwaggerType(v);
+            var existing = types_1.find(function (_t) { return (0, lodash_1.isEqual)(_t, t); });
             if (!existing)
                 types_1.push(t);
         });
@@ -175,8 +180,8 @@ exports.deriveSwaggerTypeFromExample = function (example, recurseToDepth) {
                 return deriveSimpleSwaggerType(example);
             }
             var properties_1 = {};
-            lodash_1.map(example, function (v, k) {
-                properties_1[k] = __assign({ example: v }, exports.deriveSwaggerTypeFromExample(v, recurseToDepth - 1));
+            (0, lodash_1.map)(example, function (v, k) {
+                properties_1[k] = __assign({ example: v }, (0, exports.deriveSwaggerTypeFromExample)(v, recurseToDepth - 1));
             });
             return {
                 type: 'object',
@@ -188,3 +193,4 @@ exports.deriveSwaggerTypeFromExample = function (example, recurseToDepth) {
         }
     }
 };
+exports.deriveSwaggerTypeFromExample = deriveSwaggerTypeFromExample;

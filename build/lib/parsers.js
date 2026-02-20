@@ -10,6 +10,29 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -25,7 +48,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -46,17 +69,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseControllerJsDoc = exports.parseModelsJsDoc = exports.parseControllers = exports.parseBoundRoutes = exports.parseModels = void 0;
 /**
  * Created by theophy on 02/08/2017.
  */
@@ -93,12 +110,12 @@ var parsePath = function (path) {
  *
  * @param sails
  */
-exports.parseModels = function (sails) {
-    var filteredModels = lodash_1.pickBy(sails.models, function (model /*, _identity */) {
+var parseModels = function (sails) {
+    var filteredModels = (0, lodash_1.pickBy)(sails.models, function (model /*, _identity */) {
         // consider all models except associative tables and 'Archive' model special case
         return !!model.globalId && model.globalId !== 'Archive';
     });
-    return lodash_1.mapValues(filteredModels, function (model) {
+    return (0, lodash_1.mapValues)(filteredModels, function (model) {
         return {
             globalId: model.globalId,
             primaryKey: model.primaryKey,
@@ -107,10 +124,17 @@ exports.parseModels = function (sails) {
             attributes: model.attributes,
             associations: model.associations,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            hiddenAttributes: model.hiddenAttributes || [],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            criteriaWhitelist: model.criteriaWhitelist,
+            standardLimit: model.standardLimit,
+            maximumLimit: model.maximumLimit,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             swagger: model.swagger || {}
         };
     });
 };
+exports.parseModels = parseModels;
 /**
  * Parse array of routes capture from Sails 'router:bind' events.
  *
@@ -120,7 +144,7 @@ exports.parseModels = function (sails) {
  * @param models
  * @param sails
  */
-exports.parseBoundRoutes = function (boundRoutes, models, sails) {
+var parseBoundRoutes = function (boundRoutes, models, sails) {
     /* example of Sails.Route (in particular `options`) for standard blueprint */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     var standardBlueprintRouteExampleForReference = {
@@ -267,10 +291,10 @@ exports.parseBoundRoutes = function (boundRoutes, models, sails) {
                 ignoreDuplicateCheck[routeKey_1] = true;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 if (typeof route.path.exec === 'function') { // test for RegExp
-                    sails.log.warn("WARNING: sails-hook-swagger-generator: Ignoring regular expression based bound route '" + route.verb + " " + route.path + "' - you will need to document manually if required");
+                    sails.log.warn("WARNING: sails-hook-swagger-generator: Ignoring regular expression based bound route '".concat(route.verb, " ").concat(route.path, "' - you will need to document manually if required"));
                 }
                 else {
-                    sails.log.warn("WARNING: sails-hook-swagger-generator: Ignoring route with unrecognised path '" + route.verb + " " + route.path + "' - you will need to document manually if required");
+                    sails.log.warn("WARNING: sails-hook-swagger-generator: Ignoring route with unrecognised path '".concat(route.verb, " ").concat(route.path, "' - you will need to document manually if required"));
                 }
             }
             return undefined;
@@ -300,17 +324,17 @@ exports.parseBoundRoutes = function (boundRoutes, models, sails) {
                 _middlewareType = match[1].toLowerCase();
                 mwtAction = match[2];
                 if (_middlewareType !== 'action' && _middlewareType !== 'blueprint') {
-                    sails.log.silly("DEBUG: sails-hook-swagger-generator: Ignoring bound route '" + route.verb + " " + route.path + "' bound to middleware of type '" + routeOptions._middlewareType + "'");
+                    sails.log.silly("DEBUG: sails-hook-swagger-generator: Ignoring bound route '".concat(route.verb, " ").concat(route.path, "' bound to middleware of type '").concat(routeOptions._middlewareType, "'"));
                     return undefined;
                 }
             }
             else {
-                sails.log.warn("WARNING: sails-hook-swagger-generator: Ignoring bound route '" + route.verb + " " + route.path + "' bound to middleware with unrecognised type '" + routeOptions._middlewareType + "'");
+                sails.log.warn("WARNING: sails-hook-swagger-generator: Ignoring bound route '".concat(route.verb, " ").concat(route.path, "' bound to middleware with unrecognised type '").concat(routeOptions._middlewareType, "'"));
                 return undefined;
             }
         }
         else {
-            sails.log.verbose("WARNING: sails-hook-swagger-generator: Ignoring bound route '" + route.verb + " " + route.path + "' as middleware type missing");
+            sails.log.verbose("WARNING: sails-hook-swagger-generator: Ignoring bound route '".concat(route.verb, " ").concat(route.path, "' as middleware type missing"));
             return undefined;
         }
         var middlewareType = _middlewareType === 'blueprint' ? interfaces_1.MiddlewareType.BLUEPRINT : interfaces_1.MiddlewareType.ACTION;
@@ -321,7 +345,7 @@ exports.parseBoundRoutes = function (boundRoutes, models, sails) {
             var model = models[modelIdentity];
             if (model) { // blueprint / model-based action
                 if (middlewareType === interfaces_1.MiddlewareType.BLUEPRINT && mwtAction !== blueprintAction) {
-                    sails.log.warn("WARNING: sails-hook-swagger-generator: Bound route '" + route.verb + " " + route.path + "' has blueprint action mismatch '" + blueprintAction + "' != '" + routeOptions._middlewareType + "' (ignoring)");
+                    sails.log.warn("WARNING: sails-hook-swagger-generator: Bound route '".concat(route.verb, " ").concat(route.path, "' has blueprint action mismatch '").concat(blueprintAction, "' != '").concat(routeOptions._middlewareType, "' (ignoring)"));
                 }
                 var isShortcutBlueprintRoute = false;
                 // test for shortcut blueprint routes
@@ -335,8 +359,7 @@ exports.parseBoundRoutes = function (boundRoutes, models, sails) {
                         isShortcutBlueprintRoute = true;
                     }
                 }
-                return __assign(__assign({ middlewareType: middlewareType, verb: verb }, parsedPath), { action: routeOptions.action, actionType: 'function', model: model, associationAliases: routeOptions.alias ? [routeOptions.alias] : [], blueprintAction: blueprintAction,
-                    isShortcutBlueprintRoute: isShortcutBlueprintRoute, swagger: routeOptions.swagger });
+                return __assign(__assign({ middlewareType: middlewareType, verb: verb }, parsedPath), { action: routeOptions.action, actionType: 'function', model: model, associationAliases: routeOptions.alias ? [routeOptions.alias] : [], blueprintAction: blueprintAction, isShortcutBlueprintRoute: isShortcutBlueprintRoute, swagger: routeOptions.swagger });
             }
         }
         // fall-through --> non-model based action
@@ -344,6 +367,7 @@ exports.parseBoundRoutes = function (boundRoutes, models, sails) {
     })
         .filter(function (route) { return !!route; });
 };
+exports.parseBoundRoutes = parseBoundRoutes;
 /**
  * Load and return details of all Sails controller files and actions.
  *
@@ -352,7 +376,7 @@ exports.parseBoundRoutes = function (boundRoutes, models, sails) {
  *
  * @param sails
  */
-exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, void 0, function () {
+var parseControllers = function (sails) { return __awaiter(void 0, void 0, void 0, function () {
     var controllersLoadedFromDisk, ret, traditionalRegex, actionRegex;
     return __generator(this, function (_a) {
         switch (_a.label) {
@@ -376,7 +400,7 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
                 };
                 traditionalRegex = new RegExp('^((?:(?:.*)/)*([0-9A-Z][0-9a-zA-Z_]*))Controller\\..+$');
                 actionRegex = new RegExp('^((?:(?:.*)/)*([a-z][a-z0-9-]*))\\..+$');
-                lodash_1.forEach(controllersLoadedFromDisk, function (moduleDef) {
+                (0, lodash_1.forEach)(controllersLoadedFromDisk, function (moduleDef) {
                     var filePath = moduleDef.globalId;
                     if (filePath[0] === '.') {
                         return;
@@ -387,7 +411,7 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
                     /* traditional controllers */
                     var match = traditionalRegex.exec(filePath);
                     if (match) {
-                        if (!lodash_1.isObject(moduleDef) || lodash_1.isArray(moduleDef) || lodash_1.isFunction(moduleDef)) {
+                        if (!(0, lodash_1.isObject)(moduleDef) || (0, lodash_1.isArray)(moduleDef) || (0, lodash_1.isFunction)(moduleDef)) {
                             return;
                         }
                         var moduleIdentity_1 = match[1].toLowerCase();
@@ -398,23 +422,23 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
                             swagger: moduleDef.swagger || {}, actionType: 'controller', defaultTagName: defaultTagName_1 });
                         // check for swagger.actions[] for which action dne AND convert to case-insensitive identities
                         var swaggerActions_1 = {};
-                        lodash_1.forEach(ret.controllerFiles[moduleIdentity_1].swagger.actions || {}, function (swaggerDef, actionName) {
+                        (0, lodash_1.forEach)(ret.controllerFiles[moduleIdentity_1].swagger.actions || {}, function (swaggerDef, actionName) {
                             if (actionName === 'allActions') {
                                 // proceed
                             }
                             else if (!moduleDef[actionName]) {
-                                sails.log.warn("WARNING: sails-hook-swagger-generator: Controller '" + filePath + "' contains Swagger action definition for unknown action '" + actionName + "'");
+                                sails.log.warn("WARNING: sails-hook-swagger-generator: Controller '".concat(filePath, "' contains Swagger action definition for unknown action '").concat(actionName, "'"));
                                 return;
                             }
                             var actionIdentity = actionName.toLowerCase();
                             if (swaggerActions_1[actionIdentity]) {
-                                sails.log.warn("WARNING: sails-hook-swagger-generator: Controller '" + filePath + "' contains Swagger action definition '" + actionName + "' which conflicts with a previously-loaded definition");
+                                sails.log.warn("WARNING: sails-hook-swagger-generator: Controller '".concat(filePath, "' contains Swagger action definition '").concat(actionName, "' which conflicts with a previously-loaded definition"));
                             }
                             swaggerActions_1[actionIdentity] = swaggerDef;
                         });
                         ret.controllerFiles[moduleIdentity_1].swagger.actions = swaggerActions_1;
-                        lodash_1.forEach(moduleDef, function (action, actionName) {
-                            if (lodash_1.isString(action)) { /* ignore */
+                        (0, lodash_1.forEach)(moduleDef, function (action, actionName) {
+                            if ((0, lodash_1.isString)(action)) { /* ignore */
                                 return;
                             }
                             else if (actionName === '_config') { /* ignore */
@@ -423,7 +447,7 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
                             else if (actionName === 'swagger') { /* ignore */
                                 return;
                             }
-                            else if (lodash_1.isFunction(action)) {
+                            else if ((0, lodash_1.isFunction)(action)) {
                                 var actionIdentity = (moduleIdentity_1 + '/' + actionName).toLowerCase();
                                 if (ret.actions[actionIdentity]) {
                                     // conflict --> dealt with by Sails loader so just ignore here
@@ -449,14 +473,13 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
                             // conflict --> dealt with by Sails loader so just ignore here
                             return;
                         }
-                        var actionType = lodash_1.isFunction(moduleDef) ? 'standalone' : 'actions2';
+                        var actionType = (0, lodash_1.isFunction)(moduleDef) ? 'standalone' : 'actions2';
                         var defaultTagName_2 = path.basename(match[1]);
                         // store keyed on controller file identity
                         ret.controllerFiles[actionIdentity_1] = __assign(__assign({}, moduleDef), { 
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            swagger: moduleDef.swagger || {}, actionType: actionType,
-                            defaultTagName: defaultTagName_2 });
-                        if (lodash_1.isFunction(moduleDef)) {
+                            swagger: moduleDef.swagger || {}, actionType: actionType, defaultTagName: defaultTagName_2 });
+                        if ((0, lodash_1.isFunction)(moduleDef)) {
                             ret.actions[actionIdentity_1] = {
                                 actionType: actionType,
                                 defaultTagName: path.basename(match[1]),
@@ -467,17 +490,16 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
                                 ret.actions[actionIdentity_1].swagger = _action.swagger;
                             }
                         }
-                        else if (!lodash_1.isUndefined(moduleDef.machine) || !lodash_1.isUndefined(moduleDef.friendlyName) || lodash_1.isFunction(moduleDef.fn)) {
+                        else if (!(0, lodash_1.isUndefined)(moduleDef.machine) || !(0, lodash_1.isUndefined)(moduleDef.friendlyName) || (0, lodash_1.isFunction)(moduleDef.fn)) {
                             // note no swagger here as this is captured at the controller file level above
-                            ret.actions[actionIdentity_1] = __assign({ actionType: actionType,
-                                defaultTagName: defaultTagName_2 }, lodash_1.omit(moduleDef, 'swagger'));
+                            ret.actions[actionIdentity_1] = __assign({ actionType: actionType, defaultTagName: defaultTagName_2 }, (0, lodash_1.omit)(moduleDef, 'swagger'));
                         }
                         // check for swagger.actions[] for which action dne
-                        lodash_1.forEach(ret.controllerFiles[actionIdentity_1].swagger.actions || {}, function (swaggerDef, actionName) {
+                        (0, lodash_1.forEach)(ret.controllerFiles[actionIdentity_1].swagger.actions || {}, function (swaggerDef, actionName) {
                             if (actionName === 'allActions')
                                 return;
                             if (actionName !== defaultTagName_2) {
-                                sails.log.warn("WARNING: sails-hook-swagger-generator: " + ret.actions[actionIdentity_1].actionType + " action '" + filePath + "' contains Swagger action definition for unknown action '" + actionName + "' (expected '" + defaultTagName_2 + "')");
+                                sails.log.warn("WARNING: sails-hook-swagger-generator: ".concat(ret.actions[actionIdentity_1].actionType, " action '").concat(filePath, "' contains Swagger action definition for unknown action '").concat(actionName, "' (expected '").concat(defaultTagName_2, "')"));
                             }
                         });
                     }
@@ -486,6 +508,7 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
         }
     });
 }); };
+exports.parseControllers = parseControllers;
 /**
  * Loads and parses model JSDoc, returning a map keyed on model identity.
  *
@@ -494,20 +517,34 @@ exports.parseControllers = function (sails) { return __awaiter(void 0, void 0, v
  * @param sails
  * @param models
  */
-exports.parseModelsJsDoc = function (sails, models) { return __awaiter(void 0, void 0, void 0, function () {
+var parseModelsJsDoc = function (sails, models) { return __awaiter(void 0, void 0, void 0, function () {
     var ret;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 ret = {};
-                return [4 /*yield*/, Promise.all(lodash_1.map(models, function (model, identity) { return __awaiter(void 0, void 0, void 0, function () {
-                        var modelFile, swaggerDoc, modelJsDocPath_1, modelJsDoc, err_1;
+                return [4 /*yield*/, Promise.all((0, lodash_1.map)(models, function (model, identity) { return __awaiter(void 0, void 0, void 0, function () {
+                        var modelFile, modelsDir_1, cacheKey, swaggerDoc, modelJsDocPath_1, modelJsDoc, err_1;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
                                     _a.trys.push([0, 2, , 3]);
-                                    modelFile = require.resolve(path.join(sails.config.paths.models, model.globalId));
-                                    return [4 /*yield*/, utils_1.loadSwaggerDocComments(modelFile)];
+                                    modelFile = void 0;
+                                    try {
+                                        modelFile = require.resolve(path.join(sails.config.paths.models, model.globalId));
+                                    }
+                                    catch (_b) {
+                                        modelsDir_1 = path.resolve(sails.config.paths.models);
+                                        cacheKey = Object.keys(require.cache).find(function (k) {
+                                            return k.startsWith(modelsDir_1) && path.basename(k, path.extname(k)) === model.globalId;
+                                        });
+                                        if (!cacheKey) {
+                                            sails.log.warn("sails-hook-swagger-generator: Could not locate model file for ".concat(model.globalId, " (JSDoc parsing skipped)"));
+                                            return [2 /*return*/];
+                                        }
+                                        modelFile = cacheKey;
+                                    }
+                                    return [4 /*yield*/, (0, utils_1.loadSwaggerDocComments)(modelFile)];
                                 case 1:
                                     swaggerDoc = _a.sent();
                                     modelJsDocPath_1 = '/' + model.globalId;
@@ -517,7 +554,7 @@ exports.parseModelsJsDoc = function (sails, models) { return __awaiter(void 0, v
                                         actions: {},
                                     };
                                     // check for paths for which an action dne AND convert to case-insensitive identities
-                                    lodash_1.forEach(swaggerDoc.paths, function (swaggerDef, actionName) {
+                                    (0, lodash_1.forEach)(swaggerDoc.paths, function (swaggerDef, actionName) {
                                         if (actionName === modelJsDocPath_1) {
                                             return;
                                         }
@@ -525,12 +562,12 @@ exports.parseModelsJsDoc = function (sails, models) { return __awaiter(void 0, v
                                             // proceed
                                         }
                                         else if (!actionName.startsWith('/') || !utils_1.blueprintActions.includes(actionName.slice(1))) {
-                                            sails.log.warn("WARNING: sails-hook-swagger-generator: Model file '" + model.globalId + "' contains Swagger JSDoc action definition for unknown blueprint action '" + actionName + "'");
+                                            sails.log.warn("WARNING: sails-hook-swagger-generator: Model file '".concat(model.globalId, "' contains Swagger JSDoc action definition for unknown blueprint action '").concat(actionName, "'"));
                                             return;
                                         }
                                         var actionIdentity = actionName.substring(1).toLowerCase(); // convert '/{action}' --> '{action}'
                                         if (ret[identity].actions[actionIdentity]) {
-                                            sails.log.warn("WARNING: sails-hook-swagger-generator: Model file '" + model.globalId + "' contains Swagger JSDoc action definition '" + actionName + "' which conflicts with a previously-loaded definition");
+                                            sails.log.warn("WARNING: sails-hook-swagger-generator: Model file '".concat(model.globalId, "' contains Swagger JSDoc action definition '").concat(actionName, "' which conflicts with a previously-loaded definition"));
                                         }
                                         // note coercion as non-standard swaggerDoc i.e. '/{action}' contains operation contents (no HTTP method specified)
                                         ret[identity].actions[actionIdentity] = swaggerDef;
@@ -543,7 +580,7 @@ exports.parseModelsJsDoc = function (sails, models) { return __awaiter(void 0, v
                                     return [3 /*break*/, 3];
                                 case 2:
                                     err_1 = _a.sent();
-                                    sails.log.error("ERROR: sails-hook-swagger-generator: Error resolving/loading model " + model.globalId + ": " + (err_1.message || '') /* , err */);
+                                    sails.log.warn("sails-hook-swagger-generator: Error parsing JSDoc for model ".concat(model.globalId, ": ").concat(err_1.message || ''));
                                     return [3 /*break*/, 3];
                                 case 3: return [2 /*return*/];
                             }
@@ -555,6 +592,7 @@ exports.parseModelsJsDoc = function (sails, models) { return __awaiter(void 0, v
         }
     });
 }); };
+exports.parseModelsJsDoc = parseModelsJsDoc;
 /**
  * Loads and parses controller JSDoc, returning a map keyed on controller file identity.
  *
@@ -563,20 +601,38 @@ exports.parseModelsJsDoc = function (sails, models) { return __awaiter(void 0, v
  * @param sails
  * @param controllers
  */
-exports.parseControllerJsDoc = function (sails, controllers) { return __awaiter(void 0, void 0, void 0, function () {
+var parseControllerJsDoc = function (sails, controllers) { return __awaiter(void 0, void 0, void 0, function () {
     var ret;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 ret = {};
-                return [4 /*yield*/, Promise.all(lodash_1.map(controllers.controllerFiles, function (controller, identity) { return __awaiter(void 0, void 0, void 0, function () {
-                        var controllerFile, swaggerDoc, err_2;
+                return [4 /*yield*/, Promise.all((0, lodash_1.map)(controllers.controllerFiles, function (controller, identity) { return __awaiter(void 0, void 0, void 0, function () {
+                        var controllerFile, controllersDir_1, normalizedId_1, cacheKey, swaggerDoc, err_2;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
                                     _a.trys.push([0, 2, , 3]);
-                                    controllerFile = path.join(sails.config.paths.controllers, controller.globalId);
-                                    return [4 /*yield*/, utils_1.loadSwaggerDocComments(controllerFile)];
+                                    controllerFile = void 0;
+                                    try {
+                                        controllerFile = require.resolve(path.join(sails.config.paths.controllers, controller.globalId));
+                                    }
+                                    catch (_b) {
+                                        controllersDir_1 = path.resolve(sails.config.paths.controllers);
+                                        normalizedId_1 = controller.globalId.replace(/\./g, '/');
+                                        cacheKey = Object.keys(require.cache).find(function (k) {
+                                            if (!k.startsWith(controllersDir_1))
+                                                return false;
+                                            var rel = k.substring(controllersDir_1.length + 1).replace(/\.[^.]+$/, ''); // strip extension
+                                            return rel === normalizedId_1 || rel === controller.globalId;
+                                        });
+                                        if (!cacheKey) {
+                                            sails.log.verbose("sails-hook-swagger-generator: Could not locate controller file for ".concat(controller.globalId, " (JSDoc parsing skipped)"));
+                                            return [2 /*return*/];
+                                        }
+                                        controllerFile = cacheKey;
+                                    }
+                                    return [4 /*yield*/, (0, utils_1.loadSwaggerDocComments)(controllerFile)];
                                 case 1:
                                     swaggerDoc = _a.sent();
                                     ret[identity] = {
@@ -585,25 +641,25 @@ exports.parseControllerJsDoc = function (sails, controllers) { return __awaiter(
                                         actions: {},
                                     };
                                     // check for paths for which an action dne AND convert to case-insensitive identities
-                                    lodash_1.forEach(swaggerDoc.paths, function (swaggerDef, actionName) {
+                                    (0, lodash_1.forEach)(swaggerDoc.paths, function (swaggerDef, actionName) {
                                         if (actionName === '/allActions') {
                                             // proceed
                                         }
                                         else if (controller.actionType === 'standalone' || controller.actionType === 'actions2') {
-                                            if (actionName !== "/" + controller.defaultTagName) {
-                                                sails.log.warn("WARNING: sails-hook-swagger-generator: " + controller.actionType + " action '" + controller.globalId + "' contains Swagger JSDoc action definition for unknown action '" + actionName + "' (expected '/" + controller.defaultTagName + "')");
+                                            if (actionName !== "/".concat(controller.defaultTagName)) {
+                                                sails.log.warn("WARNING: sails-hook-swagger-generator: ".concat(controller.actionType, " action '").concat(controller.globalId, "' contains Swagger JSDoc action definition for unknown action '").concat(actionName, "' (expected '/").concat(controller.defaultTagName, "')"));
                                                 return;
                                             }
                                         }
                                         else {
                                             if (!actionName.startsWith('/') || !controller[actionName.slice(1)]) {
-                                                sails.log.warn("WARNING: sails-hook-swagger-generator: Controller file '" + controller.globalId + "' contains Swagger JSDoc action defintion for unknown action '" + actionName + "'");
+                                                sails.log.warn("WARNING: sails-hook-swagger-generator: Controller file '".concat(controller.globalId, "' contains Swagger JSDoc action defintion for unknown action '").concat(actionName, "'"));
                                                 return;
                                             }
                                         }
                                         var actionIdentity = actionName.substring(1).toLowerCase(); // convert '/{action}' --> '{action}'
                                         if (ret[identity].actions[actionIdentity]) {
-                                            sails.log.warn("WARNING: sails-hook-swagger-generator: Controller file '" + controller.globalId + "' contains Swagger JSDoc action definition '" + actionName + "' which conflicts with a previously-loaded definition");
+                                            sails.log.warn("WARNING: sails-hook-swagger-generator: Controller file '".concat(controller.globalId, "' contains Swagger JSDoc action definition '").concat(actionName, "' which conflicts with a previously-loaded definition"));
                                         }
                                         // note coercion as non-standard swaggerDoc i.e. '/{action}' contains operation contents (no HTTP method specified)
                                         ret[identity].actions[actionIdentity] = swaggerDef;
@@ -611,7 +667,7 @@ exports.parseControllerJsDoc = function (sails, controllers) { return __awaiter(
                                     return [3 /*break*/, 3];
                                 case 2:
                                     err_2 = _a.sent();
-                                    sails.log.error("ERROR: sails-hook-swagger-generator: Error resolving/loading controller " + controller.globalId + ": " + (err_2.message || '') /* , err */);
+                                    sails.log.warn("sails-hook-swagger-generator: Error parsing JSDoc for controller ".concat(controller.globalId, ": ").concat(err_2.message || ''));
                                     return [3 /*break*/, 3];
                                 case 3: return [2 /*return*/];
                             }
@@ -623,3 +679,4 @@ exports.parseControllerJsDoc = function (sails, controllers) { return __awaiter(
         }
     });
 }); };
+exports.parseControllerJsDoc = parseControllerJsDoc;

@@ -34,7 +34,7 @@ declare namespace OpenApi {
       mapping?: { [key: string]: string };
     }
 
-    export type DataType = 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object';
+    export type DataType = 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object' | 'null';
 
     export interface UpdatedSchema {
       nullable?: boolean;
@@ -47,7 +47,7 @@ declare namespace OpenApi {
       examples?: any[];
       deprecated?: boolean;
 
-      type?: DataType;
+      type?: DataType | DataType[];
       allOf?: (UpdatedSchema | Reference)[];
       oneOf?: (UpdatedSchema | Reference)[];
       anyOf?: (UpdatedSchema | Reference)[];
@@ -62,9 +62,9 @@ declare namespace OpenApi {
       title?: string;
       multipleOf?: number;
       maximum?: number;
-      exclusiveMaximum?: boolean;
+      exclusiveMaximum?: number;
       minimum?: number;
-      exclusiveMinimum?: boolean;
+      exclusiveMinimum?: number;
       maxLength?: number;
       minLength?: number;
       pattern?: string;
@@ -75,6 +75,7 @@ declare namespace OpenApi {
       minProperties?: number;
       required?: string[];
       enum?: any[];
+      const?: any;
     }
 
     export type ParameterLocation = 'query' | 'header' | 'path' | 'cookie';

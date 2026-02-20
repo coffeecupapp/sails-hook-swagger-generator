@@ -36,7 +36,7 @@ export const loadSwaggerDocComments = (filePath: string): Promise<OpenApi.OpenAp
         try {
             const opts = {
                 definition: {
-                    openapi: '3.0.0', // Specification (optional, defaults to swagger: '2.0')
+                    openapi: '3.1.0',
                     info: { title: 'dummy', version: '0.0.0' },
                 },
                 apis: [filePath],

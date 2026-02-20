@@ -21,17 +21,20 @@ var __rest = (this && this.__rest) || function (s, e) {
         }
     return t;
 };
-var __spreadArrays = (this && this.__spreadArrays) || function () {
-    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-    for (var r = Array(s), k = 0, i = 0; i < il; i++)
-        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-            r[k] = a[j];
-    return r;
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 };
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.generateDefaultModelTags = exports.generatePaths = exports.generateSchemas = exports.generateSchemaAsQueryParameters = exports.generateModelAssociationFKAttributeParameters = exports.generateModelAssociationFKAttributeSchemas = exports.generateAttributeSchema = void 0;
 var type_formatter_1 = require("./type-formatter");
 var assign_1 = __importDefault(require("lodash/assign"));
 var defaults_1 = __importDefault(require("lodash/defaults"));
@@ -52,8 +55,8 @@ var utils_1 = require("./utils");
  * @see https://swagger.io/docs/specification/data-models/
  * @param {Record<string, any>} attribute Sails model attribute specification as per `Model.js` file
  */
-exports.generateAttributeSchema = function (attribute, attributeName) {
-    var _a, _b, _c, _d, _e, _f;
+var generateAttributeSchema = function (attribute, attributeName) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     var ai = attribute || {}, sts = type_formatter_1.swaggerTypes;
     var type = ai.type || 'string';
     var columnType = (_a = ai.autoMigrations) === null || _a === void 0 ? void 0 : _a.columnType;
@@ -73,11 +76,11 @@ exports.generateAttributeSchema = function (attribute, attributeName) {
             schema.type = ai.meta.swagger.type;
     }
     else if (ai.model) {
-        assign_1.default(schema, __assign(__assign({}, sts.integer), { description: formatDesc("ID of the associated **" + ai.model + "** record") }));
+        (0, assign_1.default)(schema, __assign(__assign({}, sts.integer), { description: formatDesc("ID of the associated **".concat(ai.model, "** record")) }));
     }
     else if (ai.collection) {
-        assign_1.default(schema, {
-            description: formatDesc("Array of **" + ai.collection + "**'s or array of FK's when creating / updating / not populated"),
+        (0, assign_1.default)(schema, {
+            description: formatDesc("Array of **".concat(ai.collection, "**'s or array of FK's when creating / updating / not populated")),
             type: 'array',
             items: { '$ref': '#/components/schemas/' + ai.collection },
         });
@@ -100,13 +103,13 @@ exports.generateAttributeSchema = function (attribute, attributeName) {
             else if (ct.match(/decimal/i))
                 t = sts.double;
         }
-        assign_1.default(schema, t);
+        (0, assign_1.default)(schema, t);
     }
     else if (type == 'boolean') {
-        assign_1.default(schema, sts.boolean);
+        (0, assign_1.default)(schema, sts.boolean);
     }
     else if (type == 'json') {
-        assign_1.default(schema, utils_1.deriveSwaggerTypeFromExample(ai.example || ai.defaultsTo));
+        (0, assign_1.default)(schema, (0, utils_1.deriveSwaggerTypeFromExample)(ai.example || ai.defaultsTo));
     }
     else if (type == 'ref') {
         var t = void 0;
@@ -134,13 +137,13 @@ exports.generateAttributeSchema = function (attribute, attributeName) {
                 t = sts.string; // e.g. startTime
         }
         if (t === undefined)
-            t = utils_1.deriveSwaggerTypeFromExample(ai.example || ai.defaultsTo);
+            t = (0, utils_1.deriveSwaggerTypeFromExample)(ai.example || ai.defaultsTo);
         if (t === undefined)
             t = sts.string; // safe fallback for ref
-        assign_1.default(schema, t);
+        (0, assign_1.default)(schema, t);
     }
     else { // includes =='string'
-        assign_1.default(schema, sts.string);
+        (0, assign_1.default)(schema, sts.string);
     }
     var isIP = false;
     if (schema.type == 'string') {
@@ -160,27 +163,36 @@ exports.generateAttributeSchema = function (attribute, attributeName) {
                 schema.pattern = v.regex.toString().slice(1, -1);
         }
     }
-    var annotations = [];
-    // annotate format with Sails autoCreatedAt/autoUpdatedAt
-    if (schema.type == 'string' && schema.format == 'date-time') {
-        if (ai.autoCreatedAt)
-            annotations.push('autoCreatedAt');
-        else if (ai.autoUpdatedAt)
-            annotations.push('autoUpdatedAt');
-    }
     // process Sails --> Swagger attribute mappings as per sailAttributePropertiesMap
-    defaults_1.default(schema, mapKeys_1.default(pick_1.default(ai, keys_1.default(type_formatter_1.sailsAttributePropertiesMap)), function (v, k) { return type_formatter_1.sailsAttributePropertiesMap[k]; }));
+    (0, defaults_1.default)(schema, (0, mapKeys_1.default)((0, pick_1.default)(ai, (0, keys_1.default)(type_formatter_1.sailsAttributePropertiesMap)), function (v, k) { return type_formatter_1.sailsAttributePropertiesMap[k]; }));
     // process Sails --> Swagger attribute mappings as per validationsMap
-    defaults_1.default(schema, mapKeys_1.default(pick_1.default(ai.validations, keys_1.default(type_formatter_1.validationsMap)), function (v, k) { return type_formatter_1.validationsMap[k]; }));
+    (0, defaults_1.default)(schema, (0, mapKeys_1.default)((0, pick_1.default)(ai.validations, (0, keys_1.default)(type_formatter_1.validationsMap)), function (v, k) { return type_formatter_1.validationsMap[k]; }));
+    // OpenAPI 3.1: convert enum array to oneOf + const + title when TS enum object is provided
+    var enumObj = ((_e = ai.meta) === null || _e === void 0 ? void 0 : _e.enum) || ((_g = (_f = ai.meta) === null || _f === void 0 ? void 0 : _f.swagger) === null || _g === void 0 ? void 0 : _g.enum);
+    if (enumObj && schema.enum) {
+        var isNumeric_1 = schema.enum.some(function (v) { return typeof v === 'number'; });
+        schema.oneOf = schema.enum.map(function (value) {
+            var title;
+            if (isNumeric_1) {
+                // numeric enum: reverse mapping gives us the name
+                title = enumObj[value];
+            }
+            else {
+                // string enum: find key by value
+                title = Object.keys(enumObj).find(function (k) { return enumObj[k] === value; }) || String(value);
+            }
+            return { const: value, title: title };
+        });
+        delete schema.enum;
+        delete schema.type;
+        delete schema.format;
+    }
     // copy default into example if present
     if (schema.default && !schema.example) {
         schema.example = schema.default;
     }
-    // process final autoMigrations: autoIncrement, unique
-    if (autoIncrement) {
-        annotations.push('autoIncrement');
-    }
-    if ((_e = ai.autoMigrations) === null || _e === void 0 ? void 0 : _e.unique) {
+    // process final autoMigrations: unique
+    if ((_h = ai.autoMigrations) === null || _h === void 0 ? void 0 : _h.unique) {
         schema.uniqueItems = true;
     }
     // represent Sails `isIP` as one of ipv4/ipv6
@@ -188,25 +200,29 @@ exports.generateAttributeSchema = function (attribute, attributeName) {
         schema = {
             description: formatDesc('ipv4 or ipv6 address'),
             oneOf: [
-                cloneDeep_1.default(schema),
-                assign_1.default(cloneDeep_1.default(schema), { format: 'ipv6' }),
+                (0, cloneDeep_1.default)(schema),
+                (0, assign_1.default)((0, cloneDeep_1.default)(schema), { format: 'ipv6' }),
             ]
         };
-    }
-    if (annotations.length > 0) {
-        var s = "Note Sails special attributes: " + annotations.join(', ');
-        schema.description = schema.description ? schema.description + "\n\n" + s : s;
     }
     if (schema.description)
         schema.description = schema.description.trim();
     // note: required --> required[] (not here, needs to be done at model level)
     // finally, overwrite in custom swagger
-    if ((_f = ai.meta) === null || _f === void 0 ? void 0 : _f.swagger) {
+    if ((_j = ai.meta) === null || _j === void 0 ? void 0 : _j.swagger) {
         // note: 'type' handled above
-        assign_1.default(schema, lodash_1.omit(ai.meta.swagger, 'exclude', 'type', 'in'));
+        (0, assign_1.default)(schema, (0, lodash_1.omit)(ai.meta.swagger, 'exclude', 'type', 'in', 'enum'));
+    }
+    // OpenAPI 3.1: convert nullable to type array
+    if (schema.nullable) {
+        if (schema.type) {
+            schema.type = [schema.type, 'null'];
+        }
+        delete schema.nullable;
     }
     return schema;
 };
+exports.generateAttributeSchema = generateAttributeSchema;
 /**
  * Generate the OpenAPI schemas for the foreign key values used to reference
  * ORM records for the associations of the specified Sails Model.
@@ -216,7 +232,7 @@ exports.generateAttributeSchema = function (attribute, attributeName) {
  * @param model
  * @param models
  */
-exports.generateModelAssociationFKAttributeSchemas = function (model, aliasesToInclude, models) {
+var generateModelAssociationFKAttributeSchemas = function (model, aliasesToInclude, models) {
     if (!model.associations) {
         return [];
     }
@@ -229,13 +245,14 @@ exports.generateModelAssociationFKAttributeSchemas = function (model, aliasesToI
             return; // data structure integrity issue should not occur
         }
         var description = association.type === 'model' ?
-            "**" + model.globalId + "** record's foreign key value to use as the replacement for this attribute"
-            : "**" + model.globalId + "** record's foreign key values to use as the replacement for this collection";
+            "**".concat(model.globalId, "** record's foreign key value to use as the replacement for this attribute")
+            : "**".concat(model.globalId, "** record's foreign key values to use as the replacement for this collection");
         var targetFKAttribute = targetModel.attributes[targetModel.primaryKey];
-        return exports.generateAttributeSchema(__assign(__assign({}, targetFKAttribute), { autoMigrations: __assign(__assign({}, (targetFKAttribute.autoMigrations || {})), { autoIncrement: false }), description: description + " (**" + association.alias + "** association" + (targetFKAttribute.description ? '; ' + targetFKAttribute.description : '') + ")" }));
+        return (0, exports.generateAttributeSchema)(__assign(__assign({}, targetFKAttribute), { autoMigrations: __assign(__assign({}, (targetFKAttribute.autoMigrations || {})), { autoIncrement: false }), description: "".concat(description, " (**").concat(association.alias, "** association").concat(targetFKAttribute.description ? '; ' + targetFKAttribute.description : '', ")") }));
     })
         .filter(function (parameter) { return parameter; });
 };
+exports.generateModelAssociationFKAttributeSchemas = generateModelAssociationFKAttributeSchemas;
 /**
  * Generate the OpenAPI parameters for the foreign key values used to reference
  * ORM records for the associations of the specified Sails Model.
@@ -246,7 +263,7 @@ exports.generateModelAssociationFKAttributeSchemas = function (model, aliasesToI
  * @param aliasesToInclude
  * @param models
  */
-exports.generateModelAssociationFKAttributeParameters = function (model, aliasesToInclude, models) {
+var generateModelAssociationFKAttributeParameters = function (model, aliasesToInclude, models) {
     if (!model.associations) {
         return [];
     }
@@ -259,10 +276,10 @@ exports.generateModelAssociationFKAttributeParameters = function (model, aliases
             return; // data structure integrity issue should not occur
         }
         var description = association.type === 'model' ?
-            "**" + model.globalId + "** record's foreign key value to use as the replacement for this attribute"
-            : "**" + model.globalId + "** record's foreign key values to use as the replacement for this collection";
+            "**".concat(model.globalId, "** record's foreign key value to use as the replacement for this attribute")
+            : "**".concat(model.globalId, "** record's foreign key values to use as the replacement for this collection");
         var targetFKAttribute = targetModel.attributes[targetModel.primaryKey];
-        var targetFKAttributeSchema = exports.generateAttributeSchema(__assign(__assign({}, targetFKAttribute), { autoMigrations: __assign(__assign({}, (targetFKAttribute.autoMigrations || {})), { autoIncrement: false }), description: description + " (**" + association.alias + "** association" + (targetFKAttribute.description ? '; ' + targetFKAttribute.description : '') + ")" }));
+        var targetFKAttributeSchema = (0, exports.generateAttributeSchema)(__assign(__assign({}, targetFKAttribute), { autoMigrations: __assign(__assign({}, (targetFKAttribute.autoMigrations || {})), { autoIncrement: false }), description: "".concat(description, " (**").concat(association.alias, "** association").concat(targetFKAttribute.description ? '; ' + targetFKAttribute.description : '', ")") }));
         return {
             in: 'query',
             name: association.alias,
@@ -275,9 +292,10 @@ exports.generateModelAssociationFKAttributeParameters = function (model, aliases
     })
         .filter(function (parameter) { return parameter; });
 };
-exports.generateSchemaAsQueryParameters = function (schema) {
+exports.generateModelAssociationFKAttributeParameters = generateModelAssociationFKAttributeParameters;
+var generateSchemaAsQueryParameters = function (schema) {
     var required = schema.required || [];
-    return lodash_1.map(schema.properties || {}, function (property, name) {
+    return (0, lodash_1.map)(schema.properties || {}, function (property, name) {
         var parameter = {
             in: 'query',
             name: name,
@@ -292,6 +310,7 @@ exports.generateSchemaAsQueryParameters = function (schema) {
         return parameter;
     });
 };
+exports.generateSchemaAsQueryParameters = generateSchemaAsQueryParameters;
 /**
  * Generate Swagger schema content describing specified Sails models.
  *
@@ -300,7 +319,7 @@ exports.generateSchemaAsQueryParameters = function (schema) {
  * @param models parsed Sails models as per `parsers.parseModels()`
  * @returns
  */
-exports.generateSchemas = function (models) {
+var generateSchemas = function (models) {
     return Object.keys(models)
         .reduce(function (schemas, identity) {
         var _a, _b, _c, _d, _e, _f, _g, _h;
@@ -308,32 +327,33 @@ exports.generateSchemas = function (models) {
         if (((_b = (_a = model.swagger) === null || _a === void 0 ? void 0 : _a.modelSchema) === null || _b === void 0 ? void 0 : _b.exclude) === true) {
             return schemas;
         }
-        var schemaWithoutRequired = __assign({ type: 'object', description: ((_c = model.swagger.modelSchema) === null || _c === void 0 ? void 0 : _c.description) || "Sails ORM Model **" + model.globalId + "**", properties: {} }, lodash_1.omit(((_d = model.swagger) === null || _d === void 0 ? void 0 : _d.modelSchema) || {}, 'exclude', 'description', 'required', 'tags'));
+        var schemaWithoutRequired = __assign({ type: 'object', description: ((_c = model.swagger.modelSchema) === null || _c === void 0 ? void 0 : _c.description) || "Aerion model **".concat(model.globalId, "**"), properties: {} }, (0, lodash_1.omit)(((_d = model.swagger) === null || _d === void 0 ? void 0 : _d.modelSchema) || {}, 'exclude', 'description', 'required', 'tags'));
         var required = [];
         var attributes = model.attributes || {};
-        var excludeAttributes = ((_f = (_e = model.swagger) === null || _e === void 0 ? void 0 : _e.modelSchema) === null || _f === void 0 ? void 0 : _f.excludeAttributes) || [];
-        defaults_1.default(schemaWithoutRequired.properties, Object.keys(attributes).reduce(function (props, attributeName) {
+        var excludeAttributes = __spreadArray(__spreadArray([], (model.hiddenAttributes || []), true), (((_f = (_e = model.swagger) === null || _e === void 0 ? void 0 : _e.modelSchema) === null || _f === void 0 ? void 0 : _f.excludeAttributes) || []), true);
+        (0, defaults_1.default)(schemaWithoutRequired.properties, Object.keys(attributes).reduce(function (props, attributeName) {
             var _a, _b;
             var attribute = model.attributes[attributeName];
             var excluded = ((_b = (_a = attribute.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true
                 || excludeAttributes.indexOf(attributeName) >= 0
-                || attributeName.startsWith('_');
+                || attributeName.startsWith('_')
+                || !!attribute.collection;
             if (!excluded) {
-                props[attributeName] = exports.generateAttributeSchema(attribute, attributeName);
+                props[attributeName] = (0, exports.generateAttributeSchema)(attribute, attributeName);
                 if (attribute.required)
                     required.push(attributeName);
             }
             return props;
         }, {}));
-        var withoutRequiredName = model.identity + "-without-required-constraint";
+        var withoutRequiredName = "".concat(model.identity, "-without-required-constraint");
         var schema = {
             type: 'object',
             allOf: [
-                { '$ref': "#/components/schemas/" + withoutRequiredName },
+                { '$ref': "#/components/schemas/".concat(withoutRequiredName) },
             ],
         };
         if ((_h = (_g = model.swagger) === null || _g === void 0 ? void 0 : _g.modelSchema) === null || _h === void 0 ? void 0 : _h.required) {
-            required = __spreadArrays(model.swagger.modelSchema.required);
+            required = __spreadArray([], model.swagger.modelSchema.required, true);
         }
         if (required.length > 0) {
             schema.allOf.push({ required: required });
@@ -343,6 +363,7 @@ exports.generateSchemas = function (models) {
         return schemas;
     }, {});
 };
+exports.generateSchemas = generateSchemas;
 /**
  * Generate Swagger schema content describing specified Sails routes/actions.
  *
@@ -355,27 +376,27 @@ exports.generateSchemas = function (models) {
  * @param defaultsValues
  * @param models
  */
-exports.generatePaths = function (routes, templates, defaultsValues, specification, models, sails) {
+var generatePaths = function (routes, templates, defaultsValues, specification, models, sails) {
     var paths = {};
     var tags = specification.tags;
     var components = specification.components;
     if (!components.parameters) {
         components.parameters = {};
     }
-    forEach_1.default(routes, function (route) {
+    (0, forEach_1.default)(routes, function (route) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
         if (((_a = route.swagger) === null || _a === void 0 ? void 0 : _a.exclude) === true) {
             return;
         }
         /* overwrite: summary, description, externalDocs, operationId, tags, requestBody, servers, security
          * merge: parameters (by in+name), responses (by statusCode) */
-        var pathEntry = __assign({ summary: undefined, description: undefined, externalDocs: undefined, operationId: undefined, tags: undefined, parameters: [], responses: {} }, cloneDeep_1.default(lodash_1.omit(route.swagger || {}, 'exclude')));
+        var pathEntry = __assign({ summary: undefined, description: undefined, externalDocs: undefined, operationId: undefined, tags: undefined, parameters: [], responses: {} }, (0, cloneDeep_1.default)((0, lodash_1.omit)(route.swagger || {}, 'exclude')));
         var resolveParameterRef = function (p) {
             var specWithDefaultParametersToBeMerged = {
                 components: { parameters: type_formatter_1.blueprintParameterTemplates }
             };
             // resolve first with current spec, then try template params to be added later
-            return (utils_1.resolveRef(specification, p) || utils_1.resolveRef(specWithDefaultParametersToBeMerged, p));
+            return ((0, utils_1.resolveRef)(specification, p) || (0, utils_1.resolveRef)(specWithDefaultParametersToBeMerged, p));
         };
         var isParam = function (inType, name) {
             return !!pathEntry.parameters
@@ -394,7 +415,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
             // note: check before blueprint template as these may override template for specific action(s)
             var patternVariables_1 = route.variables || [];
             if ((_b = route.actions2Machine) === null || _b === void 0 ? void 0 : _b.inputs) {
-                forEach_1.default(route.actions2Machine.inputs, function (value, key) {
+                (0, forEach_1.default)(route.actions2Machine.inputs, function (value, key) {
                     var _a;
                     var _b, _c, _d, _e;
                     if (((_c = (_b = value.meta) === null || _b === void 0 ? void 0 : _b.swagger) === null || _c === void 0 ? void 0 : _c.exclude) === true) {
@@ -406,13 +427,13 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     }
                     // compose attribute definition
                     var description = value.description, _attribute = __rest(value, ["description"]);
-                    var attribute = __assign(__assign({}, lodash_1.omit(_attribute, utils_1.attributeValidations)), { validations: pick_1.default(_attribute, utils_1.attributeValidations) });
+                    var attribute = __assign(__assign({}, (0, lodash_1.omit)(_attribute, utils_1.attributeValidations)), { validations: (0, pick_1.default)(_attribute, utils_1.attributeValidations) });
                     if (!attribute.type && 'example' in attribute) { // derive type if not specified (optional for actions2)
-                        defaults_1.default(attribute, utils_1.deriveSwaggerTypeFromExample(attribute.example || attribute.defaultsTo));
+                        (0, defaults_1.default)(attribute, (0, utils_1.deriveSwaggerTypeFromExample)(attribute.example || attribute.defaultsTo));
                     }
                     if (_in === 'body') {
                         if (!['put', 'post', 'patch'].includes(route.verb)) {
-                            sails.log.warn("WARNING: sails-hook-swagger-generator: Route '" + route.verb + " " + route.path + "' cannot contain 'requestBody'; ignoring input '" + key + " for generated Swagger");
+                            sails.log.warn("WARNING: sails-hook-swagger-generator: Route '".concat(route.verb, " ").concat(route.path, "' cannot contain 'requestBody'; ignoring input '").concat(key, " for generated Swagger"));
                             return;
                         }
                         // add to request body if we can do so cleanly
@@ -433,7 +454,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                             && rbc['application/json'].schema.type === 'object'
                             && rbc['application/json'].schema.properties) {
                             // if not reference and of type 'object' --> consider adding new property (but don't overwrite)
-                            defaults_1.default(rbc['application/json'].schema.properties, (_a = {}, _a[key] = exports.generateAttributeSchema(attribute), _a));
+                            (0, defaults_1.default)(rbc['application/json'].schema.properties, (_a = {}, _a[key] = (0, exports.generateAttributeSchema)(attribute), _a));
                         }
                     }
                     else {
@@ -445,7 +466,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                             in: _in,
                             name: key,
                             required: value.required || false,
-                            schema: exports.generateAttributeSchema(attribute),
+                            schema: (0, exports.generateAttributeSchema)(attribute),
                             description: description
                         });
                     }
@@ -456,7 +477,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                 // status to determine whether 'content' can be removed in simple cases
                 var defaultOnly_1 = {};
                 // actions2 may specify more than one 'exit' per 'statusCode' --> use oneOf (and attempt to merge)
-                forEach_1.default(route.actions2Machine.exits, function (exit, exitName) {
+                (0, forEach_1.default)(route.actions2Machine.exits, function (exit, exitName) {
                     var _a, _b;
                     if (((_b = (_a = exit.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) {
                         return;
@@ -465,7 +486,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     var defaultDescription = description;
                     statusCode = exit.statusCode || statusCode;
                     description = exit.description || description;
-                    var schema = __assign(__assign({ example: exit.outputExample }, utils_1.deriveSwaggerTypeFromExample(exit.outputExample || '')), { description: description });
+                    var schema = __assign(__assign({ example: exit.outputExample }, (0, utils_1.deriveSwaggerTypeFromExample)(exit.outputExample || '')), { description: description });
                     // XXX TODO review support for responseType, viewTemplatePath
                     var addToContentJsonSchemaOneOfIfDne = function () {
                         var _a, _b, _c;
@@ -493,7 +514,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     }
                     else if (pathEntry.responses[statusCode]) {
                         // if not exists, check for response defined in source swagger and merge/massage to suit 'application/json' oneOf
-                        exitResponses_1[statusCode] = cloneDeep_1.default(pathEntry.responses[statusCode]);
+                        exitResponses_1[statusCode] = (0, cloneDeep_1.default)(pathEntry.responses[statusCode]);
                         addToContentJsonSchemaOneOfIfDne();
                         defaultOnly_1[statusCode] = false;
                     }
@@ -507,7 +528,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     }
                 });
                 // remove oneOf for single entries and move description back to top-level
-                forEach_1.default(exitResponses_1, function (resp, statusCode) {
+                (0, forEach_1.default)(exitResponses_1, function (resp, statusCode) {
                     var _a, _b;
                     if ((_b = (_a = resp.content) === null || _a === void 0 ? void 0 : _a['application/json'].schema) === null || _b === void 0 ? void 0 : _b.oneOf) {
                         var arr = resp.content['application/json'].schema.oneOf;
@@ -521,14 +542,14 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     }
                 });
                 pathEntry.responses = __assign(__assign({}, pathEntry.responses), exitResponses_1);
-                forEach_1.default(pathEntry.responses, function (resp, statusCode) {
+                (0, forEach_1.default)(pathEntry.responses, function (resp, statusCode) {
                     var _a;
                     if (!resp.description)
                         resp.description = ((_a = exitResponses_1[statusCode]) === null || _a === void 0 ? void 0 : _a.description) || '-';
                 });
             }
             // merge actions2 summary and description
-            defaults_1.default(pathEntry, {
+            (0, defaults_1.default)(pathEntry, {
                 summary: ((_d = route.actions2Machine) === null || _d === void 0 ? void 0 : _d.friendlyName) || undefined,
                 description: ((_e = route.actions2Machine) === null || _e === void 0 ? void 0 : _e.description) || undefined,
             });
@@ -543,7 +564,10 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
             var subst_1 = function (str) { return str ? str.replace('{globalId}', route.model.globalId) : undefined; };
             /* overwrite: summary, description, externalDocs, operationId, tags, requestBody, servers, security
              * merge: parameters (by in+name), responses (by statusCode) */
-            defaults_1.default(pathEntry, __assign({ summary: subst_1(template_1.summary), description: subst_1(template_1.description), externalDocs: template_1.externalDocs || undefined, tags: ((_k = route.model.swagger.modelSchema) === null || _k === void 0 ? void 0 : _k.tags) || ((_m = (_l = route.model.swagger.actions) === null || _l === void 0 ? void 0 : _l.allactions) === null || _m === void 0 ? void 0 : _m.tags) || [route.model.globalId] }, cloneDeep_1.default(lodash_1.omit(__assign(__assign({}, ((_o = route.model.swagger.actions) === null || _o === void 0 ? void 0 : _o.allactions) || {}), ((_p = route.model.swagger.actions) === null || _p === void 0 ? void 0 : _p[route.blueprintAction]) || {}), 'exclude'))));
+            if (utils_1.blueprintActions.includes(route.blueprintAction)) {
+                pathEntry['x-blueprint'] = true;
+            }
+            (0, defaults_1.default)(pathEntry, __assign({ summary: subst_1(template_1.summary), description: subst_1(template_1.description), externalDocs: template_1.externalDocs || undefined, tags: ((_k = route.model.swagger.modelSchema) === null || _k === void 0 ? void 0 : _k.tags) || ((_m = (_l = route.model.swagger.actions) === null || _l === void 0 ? void 0 : _l.allactions) === null || _m === void 0 ? void 0 : _m.tags) || [route.model.globalId] }, (0, cloneDeep_1.default)((0, lodash_1.omit)(__assign(__assign({}, ((_o = route.model.swagger.actions) === null || _o === void 0 ? void 0 : _o.allactions) || {}), ((_p = route.model.swagger.actions) === null || _p === void 0 ? void 0 : _p[route.blueprintAction]) || {}), 'exclude'))));
             // merge parameters from model actions and template (in that order)
             (((_r = (_q = route.model.swagger.actions) === null || _q === void 0 ? void 0 : _q[route.blueprintAction]) === null || _r === void 0 ? void 0 : _r.parameters) || []).map(function (p) { return addParamIfDne(p); });
             (((_t = (_s = route.model.swagger.actions) === null || _s === void 0 ? void 0 : _s.allactions) === null || _t === void 0 ? void 0 : _t.parameters) || []).map(function (p) { return addParamIfDne(p); });
@@ -556,9 +580,9 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     if (components.parameters && !components.parameters[pname]) {
                         components.parameters[pname] = {
                             in: 'path',
-                            name: '_' + primaryKey,
+                            name: '_' + primaryKey, // note '_' as per transformSailsPathsToSwaggerPaths()
                             required: true,
-                            schema: exports.generateAttributeSchema(attributeInfo),
+                            schema: (0, exports.generateAttributeSchema)(attributeInfo),
                             description: subst_1('The desired **{globalId}** record\'s primary key value'),
                         };
                     }
@@ -567,7 +591,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                 addParamIfDne(parameter);
             });
             // merge responses from model actions
-            defaults_1.default(pathEntry.responses, (((_v = (_u = route.model.swagger.actions) === null || _u === void 0 ? void 0 : _u[route.blueprintAction]) === null || _v === void 0 ? void 0 : _v.responses) || {}), (((_x = (_w = route.model.swagger.actions) === null || _w === void 0 ? void 0 : _w.allactions) === null || _x === void 0 ? void 0 : _x.responses) || {}));
+            (0, defaults_1.default)(pathEntry.responses, (((_v = (_u = route.model.swagger.actions) === null || _u === void 0 ? void 0 : _u[route.blueprintAction]) === null || _v === void 0 ? void 0 : _v.responses) || {}), (((_x = (_w = route.model.swagger.actions) === null || _w === void 0 ? void 0 : _w.allactions) === null || _x === void 0 ? void 0 : _x.responses) || {}));
             var modifiers_1 = {
                 addPopulateQueryParam: function () {
                     var _a;
@@ -580,7 +604,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                         required: false,
                         schema: {
                             type: 'string',
-                            example: __spreadArrays(['false'], (assoc.map(function (row) { return row.alias; }) || [])).join(','),
+                            example: __spreadArray(['false'], (assoc.map(function (row) { return row.alias; }) || []), true).join(','),
                         },
                         description: 'If specified, overide the default automatic population process.'
                             + ' Accepts a comma-separated list of attribute names for which to populate record values,'
@@ -591,7 +615,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     if (isParam('query', 'select'))
                         return;
                     var attributes = route.model.attributes || {};
-                    var csv = lodash_1.reduce(attributes, function (acc, a, n) { var _a, _b; return ((((_b = (_a = a.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) ? acc : __spreadArrays(acc, [n])); }, []);
+                    var csv = (0, lodash_1.reduce)(attributes, function (acc, a, n) { var _a, _b; return ((((_b = (_a = a.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) ? acc : __spreadArray(__spreadArray([], acc, true), [n], false)); }, []);
                     pathEntry.parameters.push({
                         in: 'query',
                         name: 'select',
@@ -609,7 +633,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     if (isParam('query', 'omit'))
                         return;
                     var attributes = route.model.attributes || {};
-                    var csv = lodash_1.reduce(attributes, function (acc, a, n) { var _a, _b; return ((((_b = (_a = a.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) ? acc : __spreadArrays(acc, [n])); }, []);
+                    var csv = (0, lodash_1.reduce)(attributes, function (acc, a, n) { var _a, _b; return ((((_b = (_a = a.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) ? acc : __spreadArray(__spreadArray([], acc, true), [n], false)); }, []);
                     pathEntry.parameters.push({
                         in: 'query',
                         name: 'omit',
@@ -628,9 +652,9 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     if (route.isShortcutBlueprintRoute) {
                         var schema = (_a = specification.components.schemas) === null || _a === void 0 ? void 0 : _a[route.model.identity];
                         if (schema) {
-                            var resolvedSchema = utils_1.unrollSchema(specification, schema);
+                            var resolvedSchema = (0, utils_1.unrollSchema)(specification, schema);
                             if (resolvedSchema) {
-                                exports.generateSchemaAsQueryParameters(resolvedSchema).map(function (p) {
+                                (0, exports.generateSchemaAsQueryParameters)(resolvedSchema).map(function (p) {
                                     if (isParam('query', p.name))
                                         return;
                                     pathEntry.parameters.push(p);
@@ -642,11 +666,11 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                         if (pathEntry.requestBody)
                             return;
                         pathEntry.requestBody = {
-                            description: subst_1('JSON dictionary representing the {globalId} instance to create.'),
+                            description: subst_1('JSON dictionary representing the {globalId} instance to create.'), // XXX TODO Incorporate model description?
                             required: true,
                             content: {
                                 'application/json': {
-                                    schema: { '$ref': "#/components/schemas/" + route.model.identity }
+                                    schema: { '$ref': "#/components/schemas/".concat(route.model.identity) }
                                 },
                             },
                         };
@@ -657,9 +681,9 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     if (route.isShortcutBlueprintRoute) {
                         var schema = (_a = specification.components.schemas) === null || _a === void 0 ? void 0 : _a[route.model.identity + '-without-required-constraint'];
                         if (schema) {
-                            var resolvedSchema = utils_1.resolveRef(specification, schema);
+                            var resolvedSchema = (0, utils_1.resolveRef)(specification, schema);
                             if (resolvedSchema) {
-                                exports.generateSchemaAsQueryParameters(resolvedSchema).map(function (p) {
+                                (0, exports.generateSchemaAsQueryParameters)(resolvedSchema).map(function (p) {
                                     if (isParam('query', p.name))
                                         return;
                                     pathEntry.parameters.push(p);
@@ -671,11 +695,11 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                         if (pathEntry.requestBody)
                             return;
                         pathEntry.requestBody = {
-                            description: subst_1('JSON dictionary representing the {globalId} instance to update.'),
+                            description: subst_1('JSON dictionary representing the {globalId} instance to update.'), // XXX TODO Incorporate model description?
                             required: true,
                             content: {
                                 'application/json': {
-                                    schema: { '$ref': "#/components/schemas/" + route.model.identity + "-without-required-constraint" }
+                                    schema: { '$ref': "#/components/schemas/".concat(route.model.identity, "-without-required-constraint") }
                                 },
                             },
                         };
@@ -684,7 +708,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                 addResultOfArrayOfModels: function () {
                     var _a;
                     var pluralIdentity = route.model.identityPlural;
-                    defaults_1.default(pathEntry.responses, {
+                    (0, defaults_1.default)(pathEntry.responses, {
                         '200': {
                             description: subst_1(template_1.resultDescription || '**{globalId}** records with pagination metadata'),
                             content: {
@@ -733,7 +757,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                         name: 'childid',
                         required: true,
                         schema: {
-                            oneOf: exports.generateModelAssociationFKAttributeSchemas(route.model, route.associationAliases, models),
+                            oneOf: (0, exports.generateModelAssociationFKAttributeSchemas)(route.model, route.associationAliases, models),
                         },
                         description: 'The desired target association record\'s foreign key value'
                     });
@@ -745,7 +769,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                         var assoc = associations.find(function (_assoc) { return _assoc.alias == a; });
                         return assoc ? (assoc.collection || assoc.model) : a;
                     });
-                    defaults_1.default(pathEntry.responses, {
+                    (0, defaults_1.default)(pathEntry.responses, {
                         '200': {
                             description: subst_1(template_1.resultDescription),
                             content: {
@@ -754,7 +778,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                                         type: 'array',
                                         // items: { type: 'any' },
                                         items: {
-                                            oneOf: lodash_1.uniq(models).map(function (model) {
+                                            oneOf: (0, lodash_1.uniq)(models).map(function (model) {
                                                 return { '$ref': '#/components/schemas/' + model };
                                             }),
                                         },
@@ -765,7 +789,7 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     });
                 },
                 addResultOfModel: function () {
-                    defaults_1.default(pathEntry.responses, {
+                    (0, defaults_1.default)(pathEntry.responses, {
                         '200': {
                             description: subst_1(template_1.resultDescription || '**{globalId}** record'),
                             content: {
@@ -777,18 +801,18 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     });
                 },
                 addResultNotFound: function () {
-                    defaults_1.default(pathEntry.responses, {
+                    (0, defaults_1.default)(pathEntry.responses, {
                         '404': { description: subst_1(template_1.notFoundDescription || 'Not found'), }
                     });
                 },
                 addResultValidationError: function () {
-                    defaults_1.default(pathEntry.responses, {
+                    (0, defaults_1.default)(pathEntry.responses, {
                         '400': { description: subst_1('Validation errors; details in JSON response'), }
                     });
                 },
                 addFksBodyParam: function () {
                     if (route.isShortcutBlueprintRoute) {
-                        exports.generateModelAssociationFKAttributeParameters(route.model, route.associationAliases, models).map(function (p) {
+                        (0, exports.generateModelAssociationFKAttributeParameters)(route.model, route.associationAliases, models).map(function (p) {
                             if (!route.associationAliases || route.associationAliases.indexOf(p.name) < 0)
                                 return;
                             if (isParam('query', p.name))
@@ -807,11 +831,103 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                                     schema: {
                                         type: 'array',
                                         items: {
-                                            oneOf: exports.generateModelAssociationFKAttributeSchemas(route.model, route.associationAliases, models),
+                                            oneOf: (0, exports.generateModelAssociationFKAttributeSchemas)(route.model, route.associationAliases, models),
                                         }
                                     },
                                 },
                             },
+                        };
+                    }
+                },
+                addCriteriaWhitelistParams: function () {
+                    var _a;
+                    var _b;
+                    var criteriaWhitelist = (_b = route.model) === null || _b === void 0 ? void 0 : _b.criteriaWhitelist;
+                    if (!criteriaWhitelist)
+                        return;
+                    var hookConfig = sails.config['swagger-generator'] || {};
+                    var blueprintConfig = sails.config.blueprints || {};
+                    var criteriaDescriptions = hookConfig.criteriaDescriptions || {};
+                    // autoCriteriaWhitelist (if attribute exists on model) + model's criteriaWhitelist
+                    var autoKeys = [];
+                    var autoCriteria = blueprintConfig.autoCriteriaWhitelist || [];
+                    autoCriteria.forEach(function (attr) {
+                        var _a;
+                        if ((_a = route.model.attributes) === null || _a === void 0 ? void 0 : _a[attr])
+                            autoKeys.push(attr);
+                    });
+                    var allCriteria = __spreadArray(__spreadArray([], criteriaWhitelist, true), autoKeys, true);
+                    var attributes = route.model.attributes || {};
+                    // Build criteria params and prepend them before pagination/common params
+                    var criteriaParams = [];
+                    allCriteria.forEach(function (name) {
+                        if (isParam('query', name))
+                            return;
+                        var attr = attributes[name];
+                        var schema = attr
+                            ? (0, cloneDeep_1.default)((0, exports.generateAttributeSchema)(attr, name))
+                            : { type: 'string' };
+                        // Append date format hint based on attribute type before stripping
+                        var formatHints = {
+                            'date-time': ' (`YYYY-MM-DD` or `YYYY-MM-DDTHH:mm:ss.sssZ`)',
+                            'date': ' (`YYYY-MM-DD`)',
+                        };
+                        var formatHint = schema.format && formatHints[schema.format] || '';
+                        // Build description: prefer global criteriaDescriptions, then attribute description, then generic
+                        var baseDescription = criteriaDescriptions[name] || schema.description || "Filter by `".concat(name, "`");
+                        var description = baseDescription + formatHint;
+                        // Clean up schema for use as a query parameter
+                        delete schema.description;
+                        delete schema.format;
+                        // Strip nullability from query params (3.1 type arrays)
+                        if (Array.isArray(schema.type)) {
+                            schema.type = schema.type.filter(function (t) { return t !== 'null'; });
+                            if (schema.type.length === 1)
+                                schema.type = schema.type[0];
+                        }
+                        criteriaParams.push({
+                            in: 'query',
+                            name: name,
+                            required: false,
+                            schema: schema,
+                            description: description,
+                        });
+                    });
+                    // Prepend criteria params so they appear before pagination/common params
+                    (_a = pathEntry.parameters).unshift.apply(_a, criteriaParams);
+                    // Inline the WhereQueryParam with model-specific criteria list
+                    var whereIdx = pathEntry.parameters.findIndex(function (p) {
+                        var resolved = resolveParameterRef(p);
+                        return resolved && 'in' in resolved && resolved.in === 'query' && resolved.name === 'where';
+                    });
+                    if (whereIdx >= 0) {
+                        var criteriaList = allCriteria.map(function (c) { return "`".concat(c, "`"); }).join(', ');
+                        pathEntry.parameters[whereIdx] = {
+                            in: 'query',
+                            name: 'where',
+                            required: false,
+                            schema: { type: 'string' },
+                            description: 'A JSON-encoded [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language)'
+                                + " for advanced filtering. Only whitelisted criteria are supported: ".concat(criteriaList, ".")
+                                + ' This allows you to take advantage of `contains`, `startsWith`, and'
+                                + ' other sub-attribute criteria modifiers for more powerful `find()` queries.'
+                                + '\n\ne.g. `?where={"status":1}`',
+                        };
+                    }
+                    // Inline the LimitQueryParam with model-specific defaults
+                    var defaultLimit = route.model.standardLimit || blueprintConfig.standardLimit || 30;
+                    var maxLimit = route.model.maximumLimit || blueprintConfig.maximumLimit || defaultLimit;
+                    var limitIdx = pathEntry.parameters.findIndex(function (p) {
+                        var resolved = resolveParameterRef(p);
+                        return resolved && 'in' in resolved && resolved.in === 'query' && resolved.name === 'limit';
+                    });
+                    if (limitIdx >= 0) {
+                        pathEntry.parameters[limitIdx] = {
+                            in: 'query',
+                            name: 'limit',
+                            required: false,
+                            schema: { type: 'integer', default: defaultLimit, maximum: maxLimit },
+                            description: "The maximum number of records to return. Defaults to ".concat(defaultLimit, ", capped at ").concat(maxLimit, "."),
                         };
                     }
                 },
@@ -830,20 +946,20 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
             };
             // apply changes for blueprint action
             (template_1.modifiers || []).map(function (modifier) {
-                if (isFunction_1.default(modifier))
+                if ((0, isFunction_1.default)(modifier))
                     modifier(template_1, route, pathEntry, tags, components); // custom modifier
                 else
                     modifiers_1[modifier](); // standard modifier
             });
         } // of if (route.model && route.blueprintAction)
         // final populate noting others above
-        defaults_1.default(pathEntry, {
+        (0, defaults_1.default)(pathEntry, {
             summary: route.path || '',
             tags: [((_y = route.actions2Machine) === null || _y === void 0 ? void 0 : _y.friendlyName) || route.defaultTagName],
         });
-        defaults_1.default(pathEntry.responses, defaultsValues.responses, { '500': { description: 'Internal server error' } });
+        (0, defaults_1.default)(pathEntry.responses, defaultsValues.responses, { '500': { description: 'Internal server error' } });
         // catch the case where defaultTagName not defined
-        if (lodash_1.isEqual(pathEntry.tags, [undefined]))
+        if ((0, lodash_1.isEqual)(pathEntry.tags, [undefined]))
             pathEntry.tags = [];
         if (route.variables) {
             // now add patternVariables that don't already exist
@@ -856,28 +972,32 @@ exports.generatePaths = function (routes, templates, defaultsValues, specificati
                     name: v,
                     required: true,
                     schema: { type: 'string' },
-                    description: "Route pattern variable `" + v + "`",
+                    description: "Route pattern variable `".concat(v, "`"),
                 });
             });
         }
         if (pathEntry.tags) {
             pathEntry.tags.sort();
         }
-        set_1.default(paths, [route.path, route.verb], pathEntry);
+        (0, set_1.default)(paths, [route.path, route.verb], pathEntry);
     });
     return paths;
 };
-exports.generateDefaultModelTags = function (models) {
-    return lodash_1.map(models, function (model) {
-        var _a, _b;
-        var defaultDescription = "Sails blueprint actions for the **" + model.globalId + "** model";
+exports.generatePaths = generatePaths;
+var generateDefaultModelTags = function (models) {
+    return (0, lodash_1.map)(models, function (model) {
+        var _a, _b, _c, _d;
+        if (((_b = (_a = model.swagger) === null || _a === void 0 ? void 0 : _a.modelSchema) === null || _b === void 0 ? void 0 : _b.exclude) === true)
+            return null;
+        var defaultDescription = "CRUD actions for **".concat(model.globalId, "**");
         var tagDef = {
             name: model.globalId,
-            description: ((_a = model.swagger.modelSchema) === null || _a === void 0 ? void 0 : _a.description) || defaultDescription,
+            description: ((_c = model.swagger.modelSchema) === null || _c === void 0 ? void 0 : _c.description) || defaultDescription,
         };
-        if ((_b = model.swagger.modelSchema) === null || _b === void 0 ? void 0 : _b.externalDocs) {
+        if ((_d = model.swagger.modelSchema) === null || _d === void 0 ? void 0 : _d.externalDocs) {
             tagDef.externalDocs = __assign({}, model.swagger.modelSchema.externalDocs);
         }
         return tagDef;
-    });
+    }).filter(Boolean);
 };
+exports.generateDefaultModelTags = generateDefaultModelTags;

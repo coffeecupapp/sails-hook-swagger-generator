@@ -10,20 +10,24 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
-var __spreadArrays = (this && this.__spreadArrays) || function () {
-    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-    for (var r = Array(s), k = 0, i = 0; i < il; i++)
-        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-            r[k] = a[j];
-    return r;
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 };
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.mergeTags = exports.mergeComponents = exports.mergeControllerSwaggerIntoRouteInfo = exports.mergeControllerJsDoc = exports.mergeModelJsDoc = exports.aggregateAssociationRoutes = exports.transformSailsPathsToSwaggerPaths = void 0;
 var interfaces_1 = require("./interfaces");
 var lodash_1 = require("lodash");
 var path_1 = __importDefault(require("path"));
+var utils_1 = require("./utils");
 var transformSailsPathToSwaggerPath = function (path) {
     return path
         .split('/')
@@ -43,18 +47,19 @@ var transformSailsPathToSwaggerPath = function (path) {
  * using query parameters. Some validators expect unique names across all
  * parameter types.
  */
-exports.transformSailsPathsToSwaggerPaths = function (routes) {
+var transformSailsPathsToSwaggerPaths = function (routes) {
     routes.map(function (route) {
         var _a;
         route.path = transformSailsPathToSwaggerPath(route.path);
         if ((_a = route.model) === null || _a === void 0 ? void 0 : _a.primaryKey) {
             var pathVariable_1 = '_' + route.model.primaryKey;
-            route.path = route.path.replace('{id}', "{" + pathVariable_1 + "}");
+            route.path = route.path.replace('{id}', "{".concat(pathVariable_1, "}"));
             route.variables = route.variables.map(function (v) { return v === 'id' ? pathVariable_1 : v; });
             route.optionalVariables = route.optionalVariables.map(function (v) { return v === 'id' ? pathVariable_1 : v; });
         }
     });
 };
+exports.transformSailsPathsToSwaggerPaths = transformSailsPathsToSwaggerPaths;
 /*
   * Sails returns individual routes for each association:
   * - /api/v1/quote/:parentid/supplier/:childid
@@ -83,7 +88,7 @@ exports.transformSailsPathsToSwaggerPaths = function (routes) {
   * @see https://sailsjs.com/documentation/concepts/blueprints/blueprint-routes#?shortcut-blueprint-routes
   *
   */
-exports.aggregateAssociationRoutes = function (boundRoutes /*, models: NameKeyMap<SwaggerSailsModel>*/) {
+var aggregateAssociationRoutes = function (boundRoutes /*, models: NameKeyMap<SwaggerSailsModel>*/) {
     /* standard Sails blueprint path pattern, noting that prefix (match[1]) includes
      * blueprint prefix, REST prefix, and model including any pluralization. */
     var re = /^(\/.*)\/{parentid}\/([^/]+)(\/(?:add|remove|replace))?(\/{childid})?$/;
@@ -102,10 +107,10 @@ exports.aggregateAssociationRoutes = function (boundRoutes /*, models: NameKeyMa
     })
         .filter(function (r) { return !!r; });
     // step 2: group by verb --> then route prefix --> then model identity --> then blueprint action
-    var groupedByVerb = lodash_1.groupBy(routesToBeAggregated, function (r) { return r.route.verb; });
-    var thenByPathPrefix = lodash_1.mapValues(groupedByVerb, function (verbGroup) { return lodash_1.groupBy(verbGroup, function (r) { return r.match[1]; }); });
-    var thenByModelIdentity = lodash_1.mapValues(thenByPathPrefix, function (verbGroup) { return lodash_1.mapValues(verbGroup, function (prefixGroup) { return lodash_1.groupBy(prefixGroup, function (r) { return r.route.model.identity; }); }); });
-    var thenByAction = lodash_1.mapValues(thenByModelIdentity, function (verbGroup) { return lodash_1.mapValues(verbGroup, function (prefixGroup) { return lodash_1.mapValues(prefixGroup, function (modelGroup) { return lodash_1.groupBy(modelGroup, function (r) { return r.route.blueprintAction; }); }); }); });
+    var groupedByVerb = (0, lodash_1.groupBy)(routesToBeAggregated, function (r) { return r.route.verb; });
+    var thenByPathPrefix = (0, lodash_1.mapValues)(groupedByVerb, function (verbGroup) { return (0, lodash_1.groupBy)(verbGroup, function (r) { return r.match[1]; }); });
+    var thenByModelIdentity = (0, lodash_1.mapValues)(thenByPathPrefix, function (verbGroup) { return (0, lodash_1.mapValues)(verbGroup, function (prefixGroup) { return (0, lodash_1.groupBy)(prefixGroup, function (r) { return r.route.model.identity; }); }); });
+    var thenByAction = (0, lodash_1.mapValues)(thenByModelIdentity, function (verbGroup) { return (0, lodash_1.mapValues)(verbGroup, function (prefixGroup) { return (0, lodash_1.mapValues)(prefixGroup, function (modelGroup) { return (0, lodash_1.groupBy)(modelGroup, function (r) { return r.route.blueprintAction; }); }); }); });
     // const example = {
     //   get: { // <-- verb groups
     //     '/api/v9/rest/pets': { // <-- url prefix groups
@@ -125,17 +130,17 @@ exports.aggregateAssociationRoutes = function (boundRoutes /*, models: NameKeyMa
     // };
     // step 3: perform aggregation of leaf groups
     var transformedRoutes = {};
-    lodash_1.map(thenByAction, function (verbGroup) {
-        lodash_1.map(verbGroup, function (prefixGroup) {
-            lodash_1.map(prefixGroup, function (modelGroup) {
-                lodash_1.map(modelGroup, function (actionGroup) {
+    (0, lodash_1.map)(thenByAction, function (verbGroup) {
+        (0, lodash_1.map)(verbGroup, function (prefixGroup) {
+            (0, lodash_1.map)(prefixGroup, function (modelGroup) {
+                (0, lodash_1.map)(modelGroup, function (actionGroup) {
                     // first route becomes 'aggregated' version
                     var g = actionGroup[0];
                     var prefix = g.match[1];
                     var pk = '_' + g.route.model.primaryKey; // note '_' as per transformSailsPathsToSwaggerPaths()
                     var shortcutRoutePart = g.match[3] || '';
                     var childPart = g.match[4] || '';
-                    var aggregatedRoute = __assign(__assign({}, g.route), { path: prefix + "/{" + pk + "}/{association}" + shortcutRoutePart + childPart, variables: __spreadArrays(g.route.variables.map(function (v) { return v === 'parentid' ? pk : v; }), ['association']), optionalVariables: g.route.optionalVariables.map(function (v) { return v === 'parentid' ? pk : v; }), associationAliases: actionGroup.map(function (r) { return r.route.associationAliases[0]; }) });
+                    var aggregatedRoute = __assign(__assign({}, g.route), { path: "".concat(prefix, "/{").concat(pk, "}/{association}").concat(shortcutRoutePart).concat(childPart), variables: __spreadArray(__spreadArray([], g.route.variables.map(function (v) { return v === 'parentid' ? pk : v; }), true), ['association'], false), optionalVariables: g.route.optionalVariables.map(function (v) { return v === 'parentid' ? pk : v; }), associationAliases: actionGroup.map(function (r) { return r.route.associationAliases[0]; }) });
                     var routeKey = g.route.verb + '|' + g.route.path;
                     transformedRoutes[routeKey] = aggregatedRoute;
                     // mark others for removal
@@ -162,6 +167,7 @@ exports.aggregateAssociationRoutes = function (boundRoutes /*, models: NameKeyMa
     })
         .filter(function (r) { return !!r; });
 };
+exports.aggregateAssociationRoutes = aggregateAssociationRoutes;
 /**
  * Merges JSDoc `actions` and `model` elements **but not** `components` and `tags`
  * (which are merged in `mergeComponents()` and `mergeTags()`).
@@ -169,12 +175,12 @@ exports.aggregateAssociationRoutes = function (boundRoutes /*, models: NameKeyMa
  * @param models
  * @param modelsJsDoc
  */
-exports.mergeModelJsDoc = function (models, modelsJsDoc) {
-    lodash_1.forEach(models, function (model) {
+var mergeModelJsDoc = function (models, modelsJsDoc) {
+    (0, lodash_1.forEach)(models, function (model) {
         var modelJsDoc = modelsJsDoc[model.identity];
         if (modelJsDoc) {
             if (modelJsDoc.actions) {
-                lodash_1.forEach(modelJsDoc.actions, function (action, actionName) {
+                (0, lodash_1.forEach)(modelJsDoc.actions, function (action, actionName) {
                     if (!model.swagger.actions) {
                         model.swagger.actions = {};
                     }
@@ -182,7 +188,7 @@ exports.mergeModelJsDoc = function (models, modelsJsDoc) {
                         model.swagger.actions[actionName] = __assign({}, action);
                     }
                     else {
-                        lodash_1.defaults(model.swagger.actions[actionName], action);
+                        (0, lodash_1.defaults)(model.swagger.actions[actionName], action);
                     }
                 });
             }
@@ -191,12 +197,13 @@ exports.mergeModelJsDoc = function (models, modelsJsDoc) {
                     model.swagger.modelSchema = __assign({}, modelJsDoc.modelSchema);
                 }
                 else {
-                    lodash_1.defaults(model.swagger.modelSchema, modelJsDoc.modelSchema);
+                    (0, lodash_1.defaults)(model.swagger.modelSchema, modelJsDoc.modelSchema);
                 }
             }
         }
     });
 };
+exports.mergeModelJsDoc = mergeModelJsDoc;
 /**
  * Merges JSDoc into `controllerFiles` (not `actions`).
  *
@@ -206,12 +213,12 @@ exports.mergeModelJsDoc = function (models, modelsJsDoc) {
  * @param controllers
  * @param controllersJsDoc
  */
-exports.mergeControllerJsDoc = function (controllers, controllersJsDoc) {
-    lodash_1.forEach(controllers.controllerFiles, function (controllerFile, identity) {
+var mergeControllerJsDoc = function (controllers, controllersJsDoc) {
+    (0, lodash_1.forEach)(controllers.controllerFiles, function (controllerFile, identity) {
         var controllerJsDoc = controllersJsDoc[identity];
         if (controllerJsDoc) {
             if (controllerJsDoc.actions) {
-                lodash_1.forEach(controllerJsDoc.actions, function (action, actionName) {
+                (0, lodash_1.forEach)(controllerJsDoc.actions, function (action, actionName) {
                     if (!controllerFile.swagger.actions) {
                         controllerFile.swagger.actions = {};
                     }
@@ -219,13 +226,14 @@ exports.mergeControllerJsDoc = function (controllers, controllersJsDoc) {
                         controllerFile.swagger.actions[actionName] = __assign({}, action);
                     }
                     else {
-                        lodash_1.defaults(controllerFile.swagger.actions[actionName], action);
+                        (0, lodash_1.defaults)(controllerFile.swagger.actions[actionName], action);
                     }
                 });
             }
         }
     });
 };
+exports.mergeControllerJsDoc = mergeControllerJsDoc;
 /**
  * Merges controller file Swagger/JSDoc into `routes` from controller files and controller file JSDoc.
  *
@@ -245,7 +253,7 @@ exports.mergeControllerJsDoc = function (controllers, controllersJsDoc) {
  * @param controllers
  * @param controllersJsDoc
  */
-exports.mergeControllerSwaggerIntoRouteInfo = function (sails, routes, controllers, controllersJsDoc) {
+var mergeControllerSwaggerIntoRouteInfo = function (sails, routes, controllers, controllersJsDoc) {
     routes.map(function (route) {
         var _a;
         var mergeIntoDest = function (source) {
@@ -256,10 +264,15 @@ exports.mergeControllerSwaggerIntoRouteInfo = function (sails, routes, controlle
                 route.swagger = __assign({}, source);
             }
             else {
-                lodash_1.defaults(route.swagger, source);
+                (0, lodash_1.defaults)(route.swagger, source);
             }
         };
         var actionNameLookup = path_1.default.basename(route.action);
+        // Blueprint routes have no controller source file — swagger comes from model + blueprint templates
+        if (route.middlewareType === interfaces_1.MiddlewareType.BLUEPRINT
+            || (route.model && route.blueprintAction && utils_1.blueprintActions.includes(route.blueprintAction))) {
+            return;
+        }
         var controllerAction = controllers.actions[route.action];
         if (controllerAction) {
             // for actions, route will have action type 'function' --> update from controller info
@@ -287,7 +300,7 @@ exports.mergeControllerSwaggerIntoRouteInfo = function (sails, routes, controlle
                 }
             }
             else {
-                sails.log.error("ERROR: sails-hook-swagger-generator: Error resolving/loading controller file '" + controllerFileIdentity + "'");
+                sails.log.warn("sails-hook-swagger-generator: No controller file found for action '".concat(controllerFileIdentity, "'"));
             }
             /*
              * Step 4: Controller file JSDoc `@swagger` comments under the `/{action}` path
@@ -299,12 +312,11 @@ exports.mergeControllerSwaggerIntoRouteInfo = function (sails, routes, controlle
             }
         }
         else {
-            if (route.middlewareType === interfaces_1.MiddlewareType.ACTION) {
-                sails.log.error("ERROR: sails-hook-swagger-generator: Error resolving/loading controller action '" + route.action + "' source file");
-            }
+            sails.log.warn("sails-hook-swagger-generator: No controller source found for action '".concat(route.action, "'"));
         }
     });
 };
+exports.mergeControllerSwaggerIntoRouteInfo = mergeControllerSwaggerIntoRouteInfo;
 /**
  * Merge elements of components from `config/routes.js`, model definition files and
  * controller definition files.
@@ -322,7 +334,7 @@ exports.mergeControllerSwaggerIntoRouteInfo = function (sails, routes, controlle
  * @param models
  * @param controllers
  */
-exports.mergeComponents = function (dest, 
+var mergeComponents = function (dest, 
 // routesJsDoc: OpenApi.OpenApi,
 models, modelsJsDoc, controllers, controllersJsDoc) {
     var mergeIntoDest = function (source) {
@@ -334,15 +346,16 @@ models, modelsJsDoc, controllers, controllersJsDoc) {
             if (!dest[componentName]) {
                 dest[componentName] = {};
             }
-            lodash_1.defaults(dest[componentName], source[componentName]);
+            (0, lodash_1.defaults)(dest[componentName], source[componentName]);
         }
     };
     // WIP TBC mergeIntoDest(routesJsDoc.components);
-    lodash_1.forEach(models, function (model) { var _a; return mergeIntoDest((_a = model.swagger) === null || _a === void 0 ? void 0 : _a.components); });
-    lodash_1.forEach(modelsJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.components); });
-    lodash_1.forEach(controllers.controllerFiles, function (controllerFile) { var _a; return mergeIntoDest((_a = controllerFile.swagger) === null || _a === void 0 ? void 0 : _a.components); });
-    lodash_1.forEach(controllersJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.components); });
+    (0, lodash_1.forEach)(models, function (model) { var _a; return mergeIntoDest((_a = model.swagger) === null || _a === void 0 ? void 0 : _a.components); });
+    (0, lodash_1.forEach)(modelsJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.components); });
+    (0, lodash_1.forEach)(controllers.controllerFiles, function (controllerFile) { var _a; return mergeIntoDest((_a = controllerFile.swagger) === null || _a === void 0 ? void 0 : _a.components); });
+    (0, lodash_1.forEach)(controllersJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.components); });
 };
+exports.mergeComponents = mergeComponents;
 /**
  * Merge tag definitions from `config/routes.js`, model definition files and
  * controller definition files.
@@ -357,7 +370,7 @@ models, modelsJsDoc, controllers, controllersJsDoc) {
  * @param models
  * @param controllers
  */
-exports.mergeTags = function (dest, 
+var mergeTags = function (dest, 
 // routesJsDoc: OpenApi.OpenApi,
 models, modelsJsDoc, controllers, controllersJsDoc, defaultModelTags) {
     var mergeIntoDest = function (source) {
@@ -367,17 +380,18 @@ models, modelsJsDoc, controllers, controllersJsDoc, defaultModelTags) {
         source.map(function (sourceTag) {
             var destTag = dest.find(function (t) { return t.name === sourceTag.name; });
             if (destTag) {
-                lodash_1.defaults(destTag, sourceTag); // merge into existing
+                (0, lodash_1.defaults)(destTag, sourceTag); // merge into existing
             }
             else {
-                dest.push(lodash_1.cloneDeep(sourceTag)); // add new tag
+                dest.push((0, lodash_1.cloneDeep)(sourceTag)); // add new tag
             }
         });
     };
     // WIP TBC mergeIntoDest(routesJsDoc.tags);
-    lodash_1.forEach(models, function (model) { var _a; return mergeIntoDest((_a = model.swagger) === null || _a === void 0 ? void 0 : _a.tags); });
-    lodash_1.forEach(modelsJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.tags); });
-    lodash_1.forEach(controllers.controllerFiles, function (controllerFile) { var _a; return mergeIntoDest((_a = controllerFile.swagger) === null || _a === void 0 ? void 0 : _a.tags); });
-    lodash_1.forEach(controllersJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.tags); });
+    (0, lodash_1.forEach)(models, function (model) { var _a; return mergeIntoDest((_a = model.swagger) === null || _a === void 0 ? void 0 : _a.tags); });
+    (0, lodash_1.forEach)(modelsJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.tags); });
+    (0, lodash_1.forEach)(controllers.controllerFiles, function (controllerFile) { var _a; return mergeIntoDest((_a = controllerFile.swagger) === null || _a === void 0 ? void 0 : _a.tags); });
+    (0, lodash_1.forEach)(controllersJsDoc, function (jsDoc) { return mergeIntoDest(jsDoc.tags); });
     mergeIntoDest(defaultModelTags);
 };
+exports.mergeTags = mergeTags;

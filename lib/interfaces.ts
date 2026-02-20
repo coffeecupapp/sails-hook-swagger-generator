@@ -11,6 +11,7 @@ export interface SwaggerGenerator {
   defaults?: Defaults;
   postProcess?: (specification: OpenApi.OpenApi) => void;
   excludeDeprecatedPutBlueprintRoutes?: boolean;
+  criteriaDescriptions?: Record<string, string>;
 }
 
 /**
@@ -42,6 +43,7 @@ export enum Modifiers {
     ADD_RESULT_VALIDATION_ERROR = 'addResultValidationError',
     ADD_FKS_BODY_PARAM = 'addFksBodyParam',
     ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE = 'addShortCutBlueprintRouteNote',
+    ADD_CRITERIA_WHITELIST_PARAMS = 'addCriteriaWhitelistParams',
 }
 
 type Modifier = Modifiers | ((template: BluePrintActionTemplate, route: SwaggerRouteInfo, path: OpenApi.Operation, tags: Tag[], components: OpenApi.Components) => void)
@@ -106,6 +108,10 @@ export interface SwaggerSailsModelAttributeDefinition extends Omit<Sails.Attribu
 
 export interface SwaggerSailsModel extends Omit<Sails.Model, 'attributes'> {
     identityPlural: string;
+    hiddenAttributes: string[];
+    criteriaWhitelist?: string[];
+    standardLimit?: number;
+    maximumLimit?: number;
     attributes: Record<string, SwaggerSailsModelAttributeDefinition>;
     swagger: SwaggerModelAttribute;
 }

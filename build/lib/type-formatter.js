@@ -1,22 +1,23 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.defaults = exports.actions2Responses = exports.blueprintParameterTemplates = exports.blueprintActionTemplates = exports.validationsMap = exports.sailsAttributePropertiesMap = exports.swaggerTypes = void 0;
 var interfaces_1 = require("./interfaces");
 /**
  * this is used to map our sails types with the allowed type defintions based on swagger specification
  */
 exports.swaggerTypes = {
-    integer: { type: 'integer', format: 'int64', },
-    long: { type: 'integer', format: 'int64', },
+    integer: { type: 'integer', format: 'int64', /* comments: 'signed 64 bits' */ }, // all JavaScript numbers 64-bit
+    long: { type: 'integer', format: 'int64', /* comments: 'signed 64 bits' */ },
     bigint: { type: 'integer' },
     float: { type: 'number', format: 'float' },
     double: { type: 'number', format: 'double' },
     string: { type: 'string' },
-    byte: { type: 'string', format: 'byte', },
-    binary: { type: 'string', format: 'binary', },
+    byte: { type: 'string', format: 'byte', /* comments: 'base64 encoded characters' */ },
+    binary: { type: 'string', format: 'binary', /* comments: 'any sequence of octets' */ },
     boolean: { type: 'boolean' },
-    date: { type: 'string', format: 'date', },
-    datetime: { type: 'string', format: 'date-time', },
-    password: { type: 'string', format: 'password', },
+    date: { type: 'string', format: 'date', /* comments: 'As defined by full-date - RFC3339' */ },
+    datetime: { type: 'string', format: 'date-time', /* comments: 'As defined by date-time - RFC3339' */ },
+    password: { type: 'string', format: 'password', /* comments: 'A hint to UIs to obscure input' */ },
     object: { type: 'object' },
     any: {},
 };
@@ -67,7 +68,7 @@ exports.blueprintActionTemplates = {
             description: 'See https://sailsjs.com/documentation/reference/blueprint-api/find-one'
         },
         parameters: [
-            'primaryKeyPathParameter',
+            'primaryKeyPathParameter', // special case; filtered and substituted during generation phase
         ],
         resultDescription: 'Responds with a single **{globalId}** record as a JSON dictionary',
         notFoundDescription: 'Response denoting **{globalId}** record with specified ID **NOT** found',
@@ -89,7 +90,7 @@ exports.blueprintActionTemplates = {
             { $ref: '#/components/parameters/SortQueryParam' },
         ],
         resultDescription: 'Responds with a paged list of **{globalId}** records that match the specified criteria',
-        modifiers: [interfaces_1.Modifiers.ADD_SELECT_QUERY_PARAM, interfaces_1.Modifiers.ADD_OMIT_QUERY_PARAM, interfaces_1.Modifiers.ADD_POPULATE_QUERY_PARAM, interfaces_1.Modifiers.ADD_RESULT_OF_ARRAY_OF_MODELS, interfaces_1.Modifiers.ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE]
+        modifiers: [interfaces_1.Modifiers.ADD_CRITERIA_WHITELIST_PARAMS, interfaces_1.Modifiers.ADD_SELECT_QUERY_PARAM, interfaces_1.Modifiers.ADD_OMIT_QUERY_PARAM, interfaces_1.Modifiers.ADD_POPULATE_QUERY_PARAM, interfaces_1.Modifiers.ADD_RESULT_OF_ARRAY_OF_MODELS, interfaces_1.Modifiers.ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE]
     },
     create: {
         summary: 'Create {globalId}',
@@ -209,12 +210,11 @@ exports.blueprintParameterTemplates = {
         name: 'where',
         required: false,
         schema: { type: 'string' },
-        description: 'Instead of filtering based on a specific attribute, you may instead choose to provide'
-            + ' a `where` parameter with the WHERE piece of a'
-            + ' [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language),'
-            + ' _encoded as a JSON string_. This allows you to take advantage of `contains`, `startsWith`, and'
+        description: 'A JSON-encoded [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language)'
+            + ' for advanced filtering.'
+            + ' This allows you to take advantage of `contains`, `startsWith`, and'
             + ' other sub-attribute criteria modifiers for more powerful `find()` queries.'
-            + '\n\ne.g. `?where={"name":{"contains":"theodore"}}`'
+            + '\n\ne.g. `?where={"status":1}`'
     },
     LimitQueryParam: {
         in: 'query',

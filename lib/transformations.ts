@@ -3,6 +3,7 @@ import { forEach, defaults, cloneDeep, groupBy, mapValues, map } from "lodash";
 import { Tag } from "swagger-schema-official";
 import { OpenApi } from "../types/openapi";
 import path from "path";
+import { blueprintActions } from "./utils";
 
 
 const transformSailsPathToSwaggerPath = (path: string): string => {
@@ -280,6 +281,12 @@ export const mergeControllerSwaggerIntoRouteInfo = (sails: Sails.Sails, routes: 
 
     const actionNameLookup = path.basename(route.action);
 
+    // Blueprint routes have no controller source file — swagger comes from model + blueprint templates
+    if (route.middlewareType === MiddlewareType.BLUEPRINT
+      || (route.model && route.blueprintAction && blueprintActions.includes(route.blueprintAction as any))) {
+      return;
+    }
+
     const controllerAction = controllers.actions[route.action];
     if (controllerAction) {
 
@@ -311,7 +318,7 @@ export const mergeControllerSwaggerIntoRouteInfo = (sails: Sails.Sails, routes: 
           mergeIntoDest(controllerFile.swagger.actions?.allactions);
         }
       } else {
-        sails.log.error(`ERROR: sails-hook-swagger-generator: Error resolving/loading controller file '${controllerFileIdentity}'`);
+        sails.log.warn(`sails-hook-swagger-generator: No controller file found for action '${controllerFileIdentity}'`);
       }
 
       /*
@@ -324,9 +331,7 @@ export const mergeControllerSwaggerIntoRouteInfo = (sails: Sails.Sails, routes: 
       }
 
     } else {
-      if(route.middlewareType === MiddlewareType.ACTION) {
-        sails.log.error(`ERROR: sails-hook-swagger-generator: Error resolving/loading controller action '${route.action}' source file`);
-      }
+      sails.log.warn(`sails-hook-swagger-generator: No controller source found for action '${route.action}'`);
     }
 
   });

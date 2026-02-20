@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.MiddlewareType = exports.Modifiers = void 0;
 var Modifiers;
 (function (Modifiers) {
     Modifiers["ADD_POPULATE_QUERY_PARAM"] = "addPopulateQueryParam";
@@ -16,9 +17,10 @@ var Modifiers;
     Modifiers["ADD_RESULT_VALIDATION_ERROR"] = "addResultValidationError";
     Modifiers["ADD_FKS_BODY_PARAM"] = "addFksBodyParam";
     Modifiers["ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE"] = "addShortCutBlueprintRouteNote";
-})(Modifiers = exports.Modifiers || (exports.Modifiers = {}));
+    Modifiers["ADD_CRITERIA_WHITELIST_PARAMS"] = "addCriteriaWhitelistParams";
+})(Modifiers || (exports.Modifiers = Modifiers = {}));
 var MiddlewareType;
 (function (MiddlewareType) {
     MiddlewareType["BLUEPRINT"] = "BLUEPRINT";
     MiddlewareType["ACTION"] = "ACTION";
-})(MiddlewareType = exports.MiddlewareType || (exports.MiddlewareType = {}));
+})(MiddlewareType || (exports.MiddlewareType = MiddlewareType = {}));

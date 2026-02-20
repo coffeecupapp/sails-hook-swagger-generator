@@ -102,7 +102,7 @@ export const blueprintActionTemplates: BlueprintActionTemplates = {
       { $ref: '#/components/parameters/SortQueryParam' },
     ],
     resultDescription: 'Responds with a paged list of **{globalId}** records that match the specified criteria',
-    modifiers:[Modifiers.ADD_SELECT_QUERY_PARAM, Modifiers.ADD_OMIT_QUERY_PARAM, Modifiers.ADD_POPULATE_QUERY_PARAM, Modifiers.ADD_RESULT_OF_ARRAY_OF_MODELS, Modifiers.ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE]
+    modifiers:[Modifiers.ADD_CRITERIA_WHITELIST_PARAMS, Modifiers.ADD_SELECT_QUERY_PARAM, Modifiers.ADD_OMIT_QUERY_PARAM, Modifiers.ADD_POPULATE_QUERY_PARAM, Modifiers.ADD_RESULT_OF_ARRAY_OF_MODELS, Modifiers.ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE]
   },
   create: {
     summary: 'Create {globalId}',
@@ -223,12 +223,11 @@ export const blueprintParameterTemplates: Record<string, OpenApi.Parameter | Ref
     name: 'where',
     required: false,
     schema: { type: 'string' },
-    description: 'Instead of filtering based on a specific attribute, you may instead choose to provide'
-      + ' a `where` parameter with the WHERE piece of a'
-      + ' [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language),'
-      + ' _encoded as a JSON string_. This allows you to take advantage of `contains`, `startsWith`, and'
+    description: 'A JSON-encoded [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language)'
+      + ' for advanced filtering.'
+      + ' This allows you to take advantage of `contains`, `startsWith`, and'
       + ' other sub-attribute criteria modifiers for more powerful `find()` queries.'
-      + '\n\ne.g. `?where={"name":{"contains":"theodore"}}`'
+      + '\n\ne.g. `?where={"status":1}`'
   },
   LimitQueryParam: {
     in: 'query',

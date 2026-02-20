@@ -28,6 +28,6 @@ exports.default = {
     getCache: function () { return componentDefinitionCache; },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     write: function (path, value) {
-        set_1.default(componentDefinitionCache, path, value);
+        (0, set_1.default)(componentDefinitionCache, path, value);
     }
 };

@@ -54,6 +54,12 @@ export const parseModels = (sails: Sails.Sails): NameKeyMap<SwaggerSailsModel> =
       attributes: model.attributes,
       associations: model.associations,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      hiddenAttributes: (model as any).hiddenAttributes || [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      criteriaWhitelist: (model as any).criteriaWhitelist,
+      standardLimit: (model as any).standardLimit,
+      maximumLimit: (model as any).maximumLimit,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       swagger: (model as any).swagger || {}
     };
   });
@@ -516,7 +522,21 @@ export const parseModelsJsDoc = async (sails: Sails.Sails, models: NameKeyMap<Sw
     map(models, async (model, identity) => {
       try {
 
-        const modelFile = require.resolve(path.join(sails.config.paths.models, model.globalId));
+        let modelFile: string;
+        try {
+          modelFile = require.resolve(path.join(sails.config.paths.models, model.globalId));
+        } catch {
+          // Model may be in a subdirectory; find it via require.cache (Sails already loaded it)
+          const modelsDir = path.resolve(sails.config.paths.models);
+          const cacheKey = Object.keys(require.cache).find(k =>
+            k.startsWith(modelsDir) && path.basename(k, path.extname(k)) === model.globalId
+          );
+          if (!cacheKey) {
+            sails.log.warn(`sails-hook-swagger-generator: Could not locate model file for ${model.globalId} (JSDoc parsing skipped)`);
+            return;
+          }
+          modelFile = cacheKey;
+        }
         const swaggerDoc = await loadSwaggerDocComments(modelFile);
 
         const modelJsDocPath = '/' + model.globalId;
@@ -551,8 +571,8 @@ export const parseModelsJsDoc = async (sails: Sails.Sails, models: NameKeyMap<Sw
           ret[identity].modelSchema = modelJsDoc as SwaggerModelSchemaAttribute;
         }
 
-      } catch (err) {
-        sails.log.error(`ERROR: sails-hook-swagger-generator: Error resolving/loading model ${model.globalId}: ${err.message || ''}` /* , err */);
+      } catch (err: any) {
+        sails.log.warn(`sails-hook-swagger-generator: Error parsing JSDoc for model ${model.globalId}: ${err.message || ''}`);
       }
     })
   );
@@ -577,7 +597,24 @@ export const parseControllerJsDoc = async (sails: Sails.Sails, controllers: Swag
   await Promise.all(
     map(controllers.controllerFiles, async (controller, identity) => {
       try {
-        const controllerFile = path.join(sails.config.paths.controllers, controller.globalId);
+        let controllerFile: string;
+        try {
+          controllerFile = require.resolve(path.join(sails.config.paths.controllers, controller.globalId));
+        } catch {
+          const controllersDir = path.resolve(sails.config.paths.controllers);
+          // globalId may use dots or slashes for subdirectories; normalize to path separator
+          const normalizedId = controller.globalId.replace(/\./g, '/');
+          const cacheKey = Object.keys(require.cache).find(k => {
+            if (!k.startsWith(controllersDir)) return false;
+            const rel = k.substring(controllersDir.length + 1).replace(/\.[^.]+$/, ''); // strip extension
+            return rel === normalizedId || rel === controller.globalId;
+          });
+          if (!cacheKey) {
+            sails.log.verbose(`sails-hook-swagger-generator: Could not locate controller file for ${controller.globalId} (JSDoc parsing skipped)`);
+            return;
+          }
+          controllerFile = cacheKey;
+        }
         const swaggerDoc = await loadSwaggerDocComments(controllerFile);
 
         ret[identity] = {
@@ -609,8 +646,8 @@ export const parseControllerJsDoc = async (sails: Sails.Sails, controllers: Swag
           ret[identity].actions![actionIdentity] = swaggerDef as SwaggerActionAttribute;
         });
 
-      } catch (err) {
-        sails.log.error(`ERROR: sails-hook-swagger-generator: Error resolving/loading controller ${controller.globalId}: ${err.message || ''}` /* , err */);
+      } catch (err: any) {
+        sails.log.warn(`sails-hook-swagger-generator: Error parsing JSDoc for controller ${controller.globalId}: ${err.message || ''}`);
       }
     })
   );

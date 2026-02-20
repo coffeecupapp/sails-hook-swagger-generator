@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -14,7 +37,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -35,13 +58,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 var fs = __importStar(require("fs"));
 var lodash_1 = require("lodash");
@@ -51,7 +67,7 @@ var utils_1 = require("./utils");
 var generators_1 = require("./generators");
 var transformations_1 = require("./transformations");
 exports.default = (function (sails, sailsRoutes, context) { return __awaiter(void 0, void 0, void 0, function () {
-    var hookConfig, blueprintActionTemplates, specifications, theDefaults, models, modelsJsDoc, controllers, controllersJsDoc, routes, defaultModelTags, referencedTags, destPath;
+    var hookConfig, blueprintActionTemplates, specifications, theDefaults, models, modelsJsDoc, controllers, controllersJsDoc, routes, defaultModelTags, tagHasBlueprint, tagHasCustom, path, pathDef, _loop_1, verb, referencedTags, destPath;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -59,23 +75,23 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                 if (hookConfig.disabled) {
                     return [2 /*return*/];
                 }
-                blueprintActionTemplates = lodash_1.cloneDeep(type_formatter_1.blueprintActionTemplates);
+                blueprintActionTemplates = (0, lodash_1.cloneDeep)(type_formatter_1.blueprintActionTemplates);
                 if (hookConfig.updateBlueprintActionTemplates) {
                     blueprintActionTemplates = hookConfig.updateBlueprintActionTemplates(blueprintActionTemplates);
                 }
-                specifications = lodash_1.cloneDeep(hookConfig.swagger || {});
+                specifications = (0, lodash_1.cloneDeep)(hookConfig.swagger || {});
                 theDefaults = hookConfig.defaults || type_formatter_1.defaults;
-                models = parsers_1.parseModels(sails);
-                return [4 /*yield*/, parsers_1.parseModelsJsDoc(sails, models)];
+                models = (0, parsers_1.parseModels)(sails);
+                return [4 /*yield*/, (0, parsers_1.parseModelsJsDoc)(sails, models)];
             case 1:
                 modelsJsDoc = _a.sent();
-                return [4 /*yield*/, parsers_1.parseControllers(sails)];
+                return [4 /*yield*/, (0, parsers_1.parseControllers)(sails)];
             case 2:
                 controllers = _a.sent();
-                return [4 /*yield*/, parsers_1.parseControllerJsDoc(sails, controllers)];
+                return [4 /*yield*/, (0, parsers_1.parseControllerJsDoc)(sails, controllers)];
             case 3:
                 controllersJsDoc = _a.sent();
-                routes = parsers_1.parseBoundRoutes(sailsRoutes, models, sails);
+                routes = (0, parsers_1.parseBoundRoutes)(sailsRoutes, models, sails);
                 // fs.writeFileSync('./test/fixtures/parsedRoutes.json', JSON.stringify(routes, null, 2));
                 /*
                  * transformations phase - filter, transform, merge into consistent single model
@@ -83,8 +99,8 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                  */
                 // remove globally excluded routes
                 routes = routes.filter(function (route) { return route.path !== '/__getcookie'; });
-                transformations_1.transformSailsPathsToSwaggerPaths(routes);
-                routes = transformations_1.aggregateAssociationRoutes(routes);
+                (0, transformations_1.transformSailsPathsToSwaggerPaths)(routes);
+                routes = (0, transformations_1.aggregateAssociationRoutes)(routes);
                 if (hookConfig.includeRoute) {
                     routes = routes.filter(function (route) { return hookConfig.includeRoute(route); });
                 }
@@ -97,13 +113,13 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                 if (hookConfig.excludeDeprecatedPutBlueprintRoutes) {
                     routes = routes.filter(function (route) { return !(route.blueprintAction === 'update' && route.verb === 'put'); });
                 }
-                transformations_1.mergeModelJsDoc(models, modelsJsDoc);
-                transformations_1.mergeControllerJsDoc(controllers, controllersJsDoc);
-                transformations_1.mergeControllerSwaggerIntoRouteInfo(sails, routes, controllers, controllersJsDoc);
+                (0, transformations_1.mergeModelJsDoc)(models, modelsJsDoc);
+                (0, transformations_1.mergeControllerJsDoc)(controllers, controllersJsDoc);
+                (0, transformations_1.mergeControllerSwaggerIntoRouteInfo)(sails, routes, controllers, controllersJsDoc);
                 /*
                  * generation phase
                  */
-                lodash_1.defaultsDeep(specifications, {
+                (0, lodash_1.defaultsDeep)(specifications, {
                     tags: [],
                     components: {
                         schemas: {},
@@ -111,17 +127,38 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                     },
                     paths: {},
                 });
-                lodash_1.defaults(specifications.components.schemas, generators_1.generateSchemas(models));
-                defaultModelTags = generators_1.generateDefaultModelTags(models);
-                transformations_1.mergeComponents(specifications.components, /* routesJsDoc, */ models, modelsJsDoc, controllers, controllersJsDoc);
-                transformations_1.mergeTags(specifications.tags, /* routesJsDoc, */ models, modelsJsDoc, controllers, controllersJsDoc, defaultModelTags);
-                lodash_1.defaults(specifications.paths, generators_1.generatePaths(routes, blueprintActionTemplates, theDefaults, specifications, models, sails));
-                lodash_1.defaults(specifications.components.parameters, type_formatter_1.blueprintParameterTemplates);
-                referencedTags = utils_1.getUniqueTagsFromPath(specifications.paths);
+                (0, lodash_1.defaults)(specifications.components.schemas, (0, generators_1.generateSchemas)(models));
+                defaultModelTags = (0, generators_1.generateDefaultModelTags)(models);
+                (0, transformations_1.mergeComponents)(specifications.components, /* routesJsDoc, */ models, modelsJsDoc, controllers, controllersJsDoc);
+                (0, transformations_1.mergeTags)(specifications.tags, /* routesJsDoc, */ models, modelsJsDoc, controllers, controllersJsDoc, defaultModelTags);
+                (0, lodash_1.defaults)(specifications.paths, (0, generators_1.generatePaths)(routes, blueprintActionTemplates, theDefaults, specifications, models, sails));
+                (0, lodash_1.defaults)(specifications.components.parameters, type_formatter_1.blueprintParameterTemplates);
+                tagHasBlueprint = {};
+                tagHasCustom = {};
+                for (path in specifications.paths) {
+                    pathDef = specifications.paths[path];
+                    _loop_1 = function (verb) {
+                        var op = pathDef[verb];
+                        if (op.tags) {
+                            op.tags.forEach(function (tag) {
+                                if (op['x-blueprint']) {
+                                    tagHasBlueprint[tag] = true;
+                                }
+                                else {
+                                    tagHasCustom[tag] = true;
+                                }
+                            });
+                        }
+                    };
+                    for (verb in pathDef) {
+                        _loop_1(verb);
+                    }
+                }
+                referencedTags = (0, utils_1.getUniqueTagsFromPath)(specifications.paths);
                 specifications.tags = specifications.tags.filter(function (tagDef) {
                     var ret = referencedTags.has(tagDef.name);
                     if (!ret) {
-                        sails.log.warn("WARNING: sails-hook-swagger-generator: Tag '" + tagDef.name + "' defined but not referenced; removing");
+                        sails.log.verbose("sails-hook-swagger-generator: Tag '".concat(tagDef.name, "' defined but not referenced; removing"));
                     }
                     return ret;
                 });
@@ -129,8 +166,27 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                 referencedTags.forEach(function (tagName) {
                     var tagDef = specifications.tags.find(function (t) { return t.name === tagName; });
                     if (!tagDef) {
-                        sails.log.info("NOTICE: sails-hook-swagger-generator: Tag '" + tagName + "' referenced but not defined; adding");
+                        sails.log.verbose("sails-hook-swagger-generator: Tag '".concat(tagName, "' referenced but not defined; adding"));
                         specifications.tags.push({ name: tagName });
+                    }
+                });
+                // Update tag descriptions based on classification (after all tags are finalized)
+                specifications.tags.forEach(function (tagDef) {
+                    var _a, _b;
+                    // Skip tags with custom descriptions from model swagger config
+                    var model = Object.values(models).find(function (m) { return m.globalId === tagDef.name; });
+                    if ((_b = (_a = model === null || model === void 0 ? void 0 : model.swagger) === null || _a === void 0 ? void 0 : _a.modelSchema) === null || _b === void 0 ? void 0 : _b.description)
+                        return;
+                    var hasCrud = tagHasBlueprint[tagDef.name];
+                    var hasCustom = tagHasCustom[tagDef.name];
+                    if (hasCrud && hasCustom) {
+                        tagDef.description = "Resource: **".concat(tagDef.name, "** \u2014 CRUD and model-specific endpoints");
+                    }
+                    else if (hasCrud) {
+                        tagDef.description = "Resource: **".concat(tagDef.name, "** \u2014 CRUD endpoints");
+                    }
+                    else {
+                        tagDef.description = "**".concat(tagDef.name, "** \u2014 domain-specific endpoints");
                     }
                 });
                 if (hookConfig.postProcess) {
@@ -142,7 +198,7 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                         fs.writeFileSync(destPath, JSON.stringify(specifications, null, 2));
                     }
                     catch (e) {
-                        sails.log.error("ERROR: sails-hook-swagger-generator: Error writing " + destPath + ": " + e.message, e);
+                        sails.log.error("ERROR: sails-hook-swagger-generator: Error writing ".concat(destPath, ": ").concat(e.message), e);
                     }
                 }
                 sails.log.info('Swagger generated successfully');
