@@ -50,6 +50,7 @@ export const parseModels = (sails: Sails.Sails): NameKeyMap<SwaggerSailsModel> =
       globalId: model.globalId,
       primaryKey: model.primaryKey,
       identity: model.identity,
+      identityPlural: (model as any)._identity_plural || model.identity + 's',
       attributes: model.attributes,
       associations: model.associations,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

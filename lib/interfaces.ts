@@ -68,6 +68,7 @@ export interface SwaggerActionAttribute extends Omit<OpenApi.Operation, 'paramet
 export interface SwaggerModelSchemaAttribute extends OpenApi.UpdatedSchema {
   tags?: string[];
   exclude?: boolean;
+  excludeAttributes?: string[];
 }
 
 /**
@@ -104,6 +105,7 @@ export interface SwaggerSailsModelAttributeDefinition extends Omit<Sails.Attribu
 }
 
 export interface SwaggerSailsModel extends Omit<Sails.Model, 'attributes'> {
+    identityPlural: string;
     attributes: Record<string, SwaggerSailsModelAttributeDefinition>;
     swagger: SwaggerModelAttribute;
 }

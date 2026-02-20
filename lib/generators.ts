@@ -23,7 +23,7 @@ import { attributeValidations, resolveRef, unrollSchema, deriveSwaggerTypeFromEx
  * @see https://swagger.io/docs/specification/data-models/
  * @param {Record<string, any>} attribute Sails model attribute specification as per `Model.js` file
  */
-export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): OpenApi.UpdatedSchema => {
+export const generateAttributeSchema = (attribute: Sails.AttributeDefinition, attributeName?: string): OpenApi.UpdatedSchema => {
   const ai = attribute || {}, sts = swaggerTypes;
 
   const type = ai.type || 'string';
@@ -44,11 +44,8 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): O
     if(ai.meta.swagger.type) schema.type = ai.meta.swagger.type;
   } else if (ai.model) {
     assign(schema, {
-      description: formatDesc(`JSON dictionary representing the **${ai.model}** instance or FK when creating / updating / not populated`),
-      // '$ref': '#/components/schemas/' + ai.model,
-      oneOf: [ // we use oneOf (rather than simple ref) so description rendered (!) (at least in redocly)
-        { '$ref': '#/components/schemas/' + ai.model },
-      ],
+      ...sts.integer,
+      description: formatDesc(`ID of the associated **${ai.model}** record`),
     });
 
   } else if (ai.collection) {
@@ -82,8 +79,18 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): O
       if (ct.match(/timestamp/i)) t = sts.datetime;
       else if (ct.match(/datetime/i)) t = sts.datetime;
       else if (ct.match(/date/i)) t = sts.date;
+      else if (ct.match(/decimal/i)) t = sts.double;
+      else if (ct.match(/time\b/i)) t = sts.string; // time-of-day without date
     }
-    if(t === undefined) t = deriveSwaggerTypeFromExample(ai.example || ai.defaultsTo);
+    // fallback: infer from attribute name conventions
+    if (t === undefined && (attributeName || ai.columnName)) {
+      const name = attributeName || ai.columnName!;
+      if (/At$/.test(name)) t = sts.datetime; // e.g. createdAt, deletedAt
+      else if (/Date$/.test(name) || name === 'day') t = sts.date; // e.g. startDate, day
+      else if (/Time$/.test(name)) t = sts.string; // e.g. startTime
+    }
+    if (t === undefined) t = deriveSwaggerTypeFromExample(ai.example || ai.defaultsTo);
+    if (t === undefined) t = sts.string; // safe fallback for ref
     assign(schema, t);
   } else { // includes =='string'
     assign(schema, sts.string);
@@ -304,12 +311,16 @@ export const generateSchemas = (models: NameKeyMap<SwaggerSailsModel>): NameKeyM
       let required: string[] = [];
 
       const attributes = model.attributes || {}
+      const excludeAttributes: string[] = model.swagger?.modelSchema?.excludeAttributes || [];
       defaults(
         schemaWithoutRequired.properties,
         Object.keys(attributes).reduce((props, attributeName) => {
           const attribute = model.attributes[attributeName];
-          if (attribute.meta?.swagger?.exclude !== true) {
-            props[attributeName] = generateAttributeSchema(attribute);
+          const excluded = attribute.meta?.swagger?.exclude === true
+            || excludeAttributes.indexOf(attributeName) >= 0
+            || attributeName.startsWith('_');
+          if (!excluded) {
+            props[attributeName] = generateAttributeSchema(attribute, attributeName);
             if (attribute.required) required!.push(attributeName);
           }
           return props
@@ -748,14 +759,28 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
         },
 
         addResultOfArrayOfModels: () => {
+          const pluralIdentity = route.model!.identityPlural;
           defaults(pathEntry.responses, {
             '200': {
-              description: subst(template.resultDescription || 'Array of **{globalId}** records'),
+              description: subst(template.resultDescription || '**{globalId}** records with pagination metadata'),
               content: {
                 'application/json': {
                   schema: {
-                    type: 'array',
-                    items: { '$ref': '#/components/schemas/' + route.model!.identity },
+                    type: 'object',
+                    properties: {
+                      [pluralIdentity]: {
+                        type: 'array',
+                        items: { '$ref': '#/components/schemas/' + route.model!.identity },
+                      },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          total: { type: 'integer', description: 'Total number of matching records' },
+                          limit: { type: 'integer', description: 'Maximum number of records returned' },
+                          skip: { type: 'integer', description: 'Number of records skipped' },
+                        },
+                      },
+                    },
                   },
                 },
               },

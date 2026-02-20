@@ -148,6 +148,7 @@ describe('Transformations', () => {
     user: {
       globalId: 'User',
       identity: 'user',
+      identityPlural: 'users',
       primaryKey: 'id',
       attributes: {},
       swagger: {
