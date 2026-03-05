@@ -12,7 +12,7 @@ import forEach from 'lodash/forEach';
 import { OpenApi } from '../types/openapi';
 import set from 'lodash/set';
 import { map, omit, isEqual, reduce, uniq } from 'lodash';
-import { attributeValidations, resolveRef, unrollSchema, deriveSwaggerTypeFromExample } from './utils';
+import { attributeValidations, resolveRef, unrollSchema, deriveSwaggerTypeFromExample, blueprintActions } from './utils';
 
 
 /**
@@ -23,44 +23,49 @@ import { attributeValidations, resolveRef, unrollSchema, deriveSwaggerTypeFromEx
  * @see https://swagger.io/docs/specification/data-models/
  * @param {Record<string, any>} attribute Sails model attribute specification as per `Model.js` file
  */
-export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): OpenApi.UpdatedSchema => {
+export const generateAttributeSchema = (attribute: Sails.AttributeDefinition, attributeName?: string, resolveGlobalId?: (identity: string) => string, jsonSchema?: Record<string, any>): OpenApi.UpdatedSchema => {
   const ai = attribute || {}, sts = swaggerTypes;
 
   const type = ai.type || 'string';
-  const columnType = ai.autoMigrations?.columnType;
+  const columnType = ai.autoMigrations?.columnType || (ai as any).columnType;
   const autoIncrement = ai.autoMigrations?.autoIncrement;
 
   let schema: OpenApi.UpdatedSchema = {};
 
   const formatDesc = (extra: string): string => {
     const ret: string[] = [];
-    if(ai.description) ret.push(ai.description);
     if(extra) ret.push(extra);
-    return ret.join(' ');
+    if(ai.description) ret.push(ai.description);
+    return ret.join('. ');
   }
 
-  if (ai.meta?.swagger && 'type' in ai.meta.swagger) {
+  if (jsonSchema) {
+    assign(schema, jsonSchema);
+  } else if (ai.meta?.swagger && 'type' in ai.meta.swagger) {
     // OpenAPI 3 stipulates NO type as 'any', allow this by 'type' present but null to achieve this
     if(ai.meta.swagger.type) schema.type = ai.meta.swagger.type;
   } else if (ai.model) {
+    const displayName = resolveGlobalId ? resolveGlobalId(ai.model) : ai.model;
     assign(schema, {
-      description: formatDesc(`JSON dictionary representing the **${ai.model}** instance or FK when creating / updating / not populated`),
-      // '$ref': '#/components/schemas/' + ai.model,
-      oneOf: [ // we use oneOf (rather than simple ref) so description rendered (!) (at least in redocly)
-        { '$ref': '#/components/schemas/' + ai.model },
-      ],
+      ...sts.integer,
+      description: formatDesc(`ID of the associated **${displayName}** record`),
     });
 
   } else if (ai.collection) {
+    const displayName = resolveGlobalId ? resolveGlobalId(ai.collection) : ai.collection;
     assign(schema, {
-      description: formatDesc(`Array of **${ai.collection}**'s or array of FK's when creating / updating / not populated`),
+      description: formatDesc(`Array of **${displayName}**'s or array of FK's when creating / updating / not populated`),
       type: 'array',
       items: { '$ref': '#/components/schemas/' + ai.collection },
     });
 
   } else if (type == 'number') {
     let t = autoIncrement ? sts.integer : sts.double;
-    if (ai.validations?.isInteger) {
+    // Infer integer from isIn values (e.g. status: { isIn: [0, 1] })
+    const isInValues = ai.validations?.isIn || (ai as any).isIn;
+    const allIntegers = Array.isArray(isInValues) && isInValues.length > 0
+      && isInValues.every((v: unknown) => typeof v === 'number' && Number.isInteger(v));
+    if (ai.validations?.isInteger || allIntegers) {
       t = sts.integer;
     } else if (columnType) {
       const ct = columnType;
@@ -82,8 +87,18 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): O
       if (ct.match(/timestamp/i)) t = sts.datetime;
       else if (ct.match(/datetime/i)) t = sts.datetime;
       else if (ct.match(/date/i)) t = sts.date;
+      else if (ct.match(/decimal/i)) t = sts.double;
+      else if (ct.match(/time\b/i)) t = sts.string; // time-of-day without date
     }
-    if(t === undefined) t = deriveSwaggerTypeFromExample(ai.example || ai.defaultsTo);
+    // fallback: infer from attribute name conventions
+    if (t === undefined && (attributeName || ai.columnName)) {
+      const name = attributeName || ai.columnName!;
+      if (/At$/.test(name)) t = sts.datetime; // e.g. createdAt, deletedAt
+      else if (/Date$/.test(name) || name === 'day') t = sts.date; // e.g. startDate, day
+      else if (/Time$/.test(name)) t = sts.string; // e.g. startTime
+    }
+    if (t === undefined) t = deriveSwaggerTypeFromExample(ai.example || ai.defaultsTo);
+    if (t === undefined) t = sts.string; // safe fallback for ref
     assign(schema, t);
   } else { // includes =='string'
     assign(schema, sts.string);
@@ -101,29 +116,36 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): O
     }
   }
 
-  const annotations = [];
-
-  // annotate format with Sails autoCreatedAt/autoUpdatedAt
-  if (schema.type == 'string' && schema.format == 'date-time') {
-    if (ai.autoCreatedAt) annotations.push('autoCreatedAt');
-    else if (ai.autoUpdatedAt) annotations.push('autoUpdatedAt');
-  }
-
   // process Sails --> Swagger attribute mappings as per sailAttributePropertiesMap
   defaults(schema, mapKeys(pick(ai, keys(sailsAttributePropertiesMap)), (v, k: keyof Sails.AttributeDefinition) => sailsAttributePropertiesMap[k]));
 
   // process Sails --> Swagger attribute mappings as per validationsMap
   defaults(schema, mapKeys(pick(ai.validations, keys(validationsMap)), (v, k: keyof Sails.AttributeValidation) => validationsMap[k]));
 
-  // copy default into example if present
-  if (schema.default && !schema.example) {
-    schema.example = schema.default;
+  // OpenAPI 3.1: convert enum array to oneOf + const + title when TS enum object is provided
+  const enumObj = ai.meta?.enum || ai.meta?.swagger?.enum;
+  if (enumObj && schema.enum) {
+    const isNumeric = schema.enum.some((v: unknown) => typeof v === 'number');
+    schema.oneOf = (schema.enum as Array<string | number>).map(value => {
+      let title: string;
+      if (isNumeric) {
+        // numeric enum: reverse mapping gives us the name
+        title = enumObj[value as number] as string;
+      } else {
+        // string enum: find key by value
+        title = Object.keys(enumObj).find(k => enumObj[k] === value) || String(value);
+      }
+      return { const: value, title };
+    });
+    delete schema.enum;
+    delete schema.type;
+    delete schema.format;
   }
 
-  // process final autoMigrations: autoIncrement, unique
-  if (autoIncrement) {
-    annotations.push('autoIncrement');
-  }
+  // skip copying default into example; swagger-ui displays default separately
+  // and duplicating it as example causes redundant display for truthy defaults
+
+  // process final autoMigrations: unique
   if (ai.autoMigrations?.unique) {
     schema.uniqueItems = true;
   }
@@ -139,10 +161,8 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): O
     }
   }
 
-  if (annotations.length > 0) {
-    const s = `Note Sails special attributes: ${annotations.join(', ')}`;
-    schema.description = schema.description ? `${schema.description}\n\n${s}` : s;
-  }
+  // Pick up attribute description if not already set by type-specific logic
+  if (ai.description && !schema.description) schema.description = ai.description;
 
   if(schema.description) schema.description = schema.description.trim();
 
@@ -151,7 +171,15 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition): O
   // finally, overwrite in custom swagger
   if(ai.meta?.swagger) {
     // note: 'type' handled above
-    assign(schema, omit(ai.meta.swagger, 'exclude', 'type', 'in'));
+    assign(schema, omit(ai.meta.swagger, 'exclude', 'type', 'in', 'enum'));
+  }
+
+  // OpenAPI 3.1: convert nullable to type array
+  if (schema.nullable) {
+    if (schema.type) {
+      schema.type = [schema.type as OpenApi.DataType, 'null'];
+    }
+    delete schema.nullable;
   }
 
   return schema;
@@ -286,6 +314,8 @@ export const generateSchemaAsQueryParameters = (schema: OpenApi.UpdatedSchema): 
  * @returns
  */
 export const generateSchemas = (models: NameKeyMap<SwaggerSailsModel>): NameKeyMap<OpenApi.UpdatedSchema | Reference> => {
+  const resolveGlobalId = (identity: string): string => models[identity]?.globalId || identity;
+
   return Object.keys(models)
     .reduce((schemas, identity) => {
       const model = models[identity]
@@ -296,7 +326,7 @@ export const generateSchemas = (models: NameKeyMap<SwaggerSailsModel>): NameKeyM
 
       const schemaWithoutRequired: OpenApi.UpdatedSchema = {
         type: 'object',
-        description: model.swagger.modelSchema?.description || `Sails ORM Model **${model.globalId}**`,
+        description: model.swagger.modelSchema?.description || `Aerion model **${model.globalId}**`,
         properties: {},
         ...omit(model.swagger?.modelSchema || {}, 'exclude', 'description', 'required', 'tags'),
       }
@@ -304,12 +334,21 @@ export const generateSchemas = (models: NameKeyMap<SwaggerSailsModel>): NameKeyM
       let required: string[] = [];
 
       const attributes = model.attributes || {}
+      const excludeAttributes: string[] = [
+        ...(model.hiddenAttributes || []),
+        ...(model.swagger?.modelSchema?.excludeAttributes || []),
+      ];
       defaults(
         schemaWithoutRequired.properties,
         Object.keys(attributes).reduce((props, attributeName) => {
           const attribute = model.attributes[attributeName];
-          if (attribute.meta?.swagger?.exclude !== true) {
-            props[attributeName] = generateAttributeSchema(attribute);
+          const excluded = attribute.meta?.swagger?.exclude === true
+            || excludeAttributes.indexOf(attributeName) >= 0
+            || attributeName.startsWith('_')
+            || !!attribute.collection;
+          if (!excluded) {
+            const jsonSchema = model.jsonSchemas?.[attributeName];
+            props[attributeName] = generateAttributeSchema(attribute, attributeName, resolveGlobalId, jsonSchema);
             if (attribute.required) required!.push(attributeName);
           }
           return props
@@ -355,6 +394,7 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
   defaultsValues: Defaults, specification: OpenApi.OpenApi,
   models: NameKeyMap<SwaggerSailsModel>, sails: Sails.Sails): OpenApi.Paths => {
 
+  const resolveGlobalId = (identity: string): string => models[identity]?.globalId || identity;
   const paths = {};
   const tags = specification.tags!;
   const components = specification.components!;
@@ -581,7 +621,9 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
     // handle blueprint actions and related documentation (from model and blueprint template)
     if (route.model && route.blueprintAction) {
 
-      if (route.model.swagger?.modelSchema?.exclude === true
+      const isBlueprint = blueprintActions.includes(route.blueprintAction as any);
+
+      if ((route.model.swagger?.modelSchema?.exclude === true && isBlueprint)
         || route.model.swagger.actions?.[route.blueprintAction]?.exclude === true) {
         return;
       }
@@ -592,6 +634,12 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
 
       /* overwrite: summary, description, externalDocs, operationId, tags, requestBody, servers, security
        * merge: parameters (by in+name), responses (by statusCode) */
+      // Mark actual blueprint CRUD operations with x-blueprint for downstream classification
+      // (used by swagger-doc.ts to generate tag descriptions based on operation types)
+      if (isBlueprint) {
+        (pathEntry as any)['x-blueprint'] = true;
+      }
+
       defaults(
         pathEntry,
         {
@@ -619,7 +667,7 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           if (components.parameters && !components.parameters[pname]) {
             components.parameters[pname] = {
               in: 'path',
-              name: '_' + primaryKey, // note '_' as per transformSailsPathsToSwaggerPaths()
+              name: primaryKey,
               required: true,
               schema: generateAttributeSchema(attributeInfo),
               description: subst('The desired **{globalId}** record\'s primary key value'),
@@ -709,12 +757,19 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
             }
           } else {
             if (pathEntry.requestBody) return;
+            const identity = route.model!.identity;
             pathEntry.requestBody = {
-              description: subst('JSON dictionary representing the {globalId} instance to create.'), // XXX TODO Incorporate model description?
+              description: subst('JSON dictionary representing the {globalId} instance to create.\n\n**Important:** The request body must be wrapped in a `' + identity + '` key — e.g. `{"' + identity + '": {…}}`.'),
               required: true,
               content: {
                 'application/json': {
-                  schema: { '$ref': `#/components/schemas/${route.model!.identity}` }
+                  schema: {
+                    type: 'object',
+                    required: [identity],
+                    properties: {
+                      [identity]: { '$ref': `#/components/schemas/${identity}` }
+                    },
+                  },
                 },
               },
             };
@@ -735,12 +790,19 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
             }
           } else {
             if (pathEntry.requestBody) return;
+            const identity = route.model!.identity;
             pathEntry.requestBody = {
-              description: subst('JSON dictionary representing the {globalId} instance to update.'), // XXX TODO Incorporate model description?
+              description: subst('JSON dictionary representing the {globalId} fields to update.\n\n**Important:** The request body must be wrapped in a `' + identity + '` key — e.g. `{"' + identity + '": {…}}`. All fields are optional — only included fields will be modified.'),
               required: true,
               content: {
                 'application/json': {
-                  schema: { '$ref': `#/components/schemas/${route.model!.identity}-without-required-constraint` }
+                  schema: {
+                    type: 'object',
+                    required: [identity],
+                    properties: {
+                      [identity]: { '$ref': `#/components/schemas/${identity}` }
+                    },
+                  },
                 },
               },
             }
@@ -748,14 +810,28 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
         },
 
         addResultOfArrayOfModels: () => {
+          const pluralIdentity = route.model!.identityPlural;
           defaults(pathEntry.responses, {
             '200': {
-              description: subst(template.resultDescription || 'Array of **{globalId}** records'),
+              description: subst(template.resultDescription || '**{globalId}** records with pagination metadata'),
               content: {
                 'application/json': {
                   schema: {
-                    type: 'array',
-                    items: { '$ref': '#/components/schemas/' + route.model!.identity },
+                    type: 'object',
+                    properties: {
+                      [pluralIdentity]: {
+                        type: 'array',
+                        items: { '$ref': '#/components/schemas/' + route.model!.identity },
+                      },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          total: { type: 'integer', description: 'Total number of matching records' },
+                          limit: { type: 'integer', description: 'Maximum number of records returned' },
+                          skip: { type: 'integer', description: 'Number of records skipped' },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -817,12 +893,18 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
         },
 
         addResultOfModel: () => {
+          const identity = route.model!.identity;
           defaults(pathEntry.responses, {
             '200': {
               description: subst(template.resultDescription || '**{globalId}** record'),
               content: {
                 'application/json': {
-                  schema: { '$ref': '#/components/schemas/' + route.model!.identity },
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      [identity]: { '$ref': '#/components/schemas/' + identity },
+                    },
+                  },
                 },
               },
             }
@@ -863,6 +945,111 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
                   } as OpenApi.UpdatedSchema,
                 },
               },
+            };
+          }
+        },
+
+        addCriteriaWhitelistParams: () => {
+          const criteriaWhitelist = route.model?.criteriaWhitelist;
+          if (!criteriaWhitelist) return;
+
+          const hookConfig = (sails.config as any)['swagger-generator'] || {};
+          const blueprintConfig = (sails.config as any).blueprints || {};
+          const criteriaDescriptions: Record<string, string> = hookConfig.criteriaDescriptions || {};
+
+          // autoCriteriaWhitelist (if attribute exists on model) + model's criteriaWhitelist
+          const autoKeys: string[] = [];
+          const autoCriteria: string[] = blueprintConfig.autoCriteriaWhitelist || [];
+          autoCriteria.forEach(attr => {
+            if (route.model!.attributes?.[attr]) autoKeys.push(attr);
+          });
+          const allCriteria = [...criteriaWhitelist, ...autoKeys];
+          const attributes = route.model!.attributes || {};
+
+          // Build criteria params and prepend them before pagination/common params
+          const criteriaParams: OpenApi.Parameter[] = [];
+          allCriteria.forEach(name => {
+            if (isParam('query', name)) return;
+            const attr = attributes[name];
+            const schema: OpenApi.UpdatedSchema = attr
+              ? cloneDeep(generateAttributeSchema(attr, name, resolveGlobalId))
+              : { type: 'string' };
+
+            // Append date format hint based on attribute type before stripping
+            const formatHints: Record<string, string> = {
+              'date-time': ' (`YYYY-MM-DD` or `YYYY-MM-DDTHH:mm:ss.sssZ`)',
+              'date': ' (`YYYY-MM-DD`)',
+            };
+            const formatHint = schema.format && formatHints[schema.format] || '';
+            const isDateField = schema.format === 'date' || schema.format === 'date-time';
+            const dateNote = isDateField ? '. This is an **exact match** filter; for range queries (greater than, less than), use the `where` parameter instead' : '';
+
+            // Build description: prefer global criteriaDescriptions, then attribute description, then generic
+            const baseDescription = criteriaDescriptions[name] || schema.description || `Filter by \`${name}\``;
+            const description = baseDescription + formatHint + dateNote;
+
+            // Clean up schema for use as a query parameter
+            delete schema.description;
+            delete schema.format;
+
+            // Strip nullability from query params (3.1 type arrays)
+            if (Array.isArray(schema.type)) {
+              schema.type = (schema.type as OpenApi.DataType[]).filter(t => t !== 'null');
+              if ((schema.type as OpenApi.DataType[]).length === 1) schema.type = (schema.type as OpenApi.DataType[])[0];
+            }
+
+            criteriaParams.push({
+              in: 'query',
+              name,
+              required: false,
+              schema,
+              description,
+            });
+          });
+
+          // Prepend criteria params so they appear before pagination/common params
+          pathEntry.parameters.unshift(...criteriaParams);
+
+          // Inline the WhereQueryParam with model-specific criteria list
+          const whereIdx = pathEntry.parameters.findIndex(p => {
+            const resolved = resolveParameterRef(p);
+            return resolved && 'in' in resolved && resolved.in === 'query' && resolved.name === 'where';
+          });
+          if (whereIdx >= 0) {
+            const criteriaList = allCriteria.map(c => `\`${c}\``).join(', ');
+            pathEntry.parameters[whereIdx] = {
+              in: 'query',
+              name: 'where',
+              required: false,
+              schema: { type: 'string' },
+              description: 'A JSON-encoded [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language)'
+                + ` for advanced filtering. Only whitelisted criteria are supported: ${criteriaList}.`
+                + ' Supports sub-attribute modifiers such as `contains`, `startsWith`, `>=`, `<=`, `>`, `<`, and `!=`'
+                + ' for more powerful find-where requests.'
+                + (() => {
+                  const now = new Date();
+                  const y = now.getFullYear();
+                  const m = String(now.getMonth() + 1).padStart(2, '0');
+                  const m2 = String(now.getMonth() + 2).padStart(2, '0');
+                  return `\n\ne.g. \`?where={"startDate":{">=":"${y}-${m}-01","<":"${y}-${m2}-01"}}\``;
+                })(),
+            };
+          }
+
+          // Inline the LimitQueryParam with model-specific defaults
+          const defaultLimit = route.model!.standardLimit || blueprintConfig.standardLimit || 30;
+          const maxLimit = route.model!.maximumLimit || blueprintConfig.maximumLimit || defaultLimit;
+          const limitIdx = pathEntry.parameters.findIndex(p => {
+            const resolved = resolveParameterRef(p);
+            return resolved && 'in' in resolved && resolved.in === 'query' && resolved.name === 'limit';
+          });
+          if (limitIdx >= 0) {
+            pathEntry.parameters[limitIdx] = {
+              in: 'query',
+              name: 'limit',
+              required: false,
+              schema: { type: 'integer', default: defaultLimit, maximum: maxLimit },
+              description: `The maximum number of records to return. Defaults to ${defaultLimit}, capped at ${maxLimit}.`,
             };
           }
         },
@@ -935,7 +1122,9 @@ export const generateDefaultModelTags = (models: NameKeyMap<SwaggerSailsModel>):
 
   return map(models, model => {
 
-    const defaultDescription = `Sails blueprint actions for the **${model.globalId}** model`;
+    if (model.swagger?.modelSchema?.exclude === true) return null;
+
+    const defaultDescription = `CRUD actions for **${model.globalId}**`;
 
     const tagDef: Tag = {
       name: model.globalId,
@@ -948,6 +1137,6 @@ export const generateDefaultModelTags = (models: NameKeyMap<SwaggerSailsModel>):
 
     return tagDef;
 
-  });
+  }).filter(Boolean) as Tag[];
 
 }

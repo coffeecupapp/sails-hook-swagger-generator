@@ -11,6 +11,7 @@ export interface SwaggerGenerator {
   defaults?: Defaults;
   postProcess?: (specification: OpenApi.OpenApi) => void;
   excludeDeprecatedPutBlueprintRoutes?: boolean;
+  criteriaDescriptions?: Record<string, string>;
 }
 
 /**
@@ -42,6 +43,7 @@ export enum Modifiers {
     ADD_RESULT_VALIDATION_ERROR = 'addResultValidationError',
     ADD_FKS_BODY_PARAM = 'addFksBodyParam',
     ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE = 'addShortCutBlueprintRouteNote',
+    ADD_CRITERIA_WHITELIST_PARAMS = 'addCriteriaWhitelistParams',
 }
 
 type Modifier = Modifiers | ((template: BluePrintActionTemplate, route: SwaggerRouteInfo, path: OpenApi.Operation, tags: Tag[], components: OpenApi.Components) => void)
@@ -68,6 +70,7 @@ export interface SwaggerActionAttribute extends Omit<OpenApi.Operation, 'paramet
 export interface SwaggerModelSchemaAttribute extends OpenApi.UpdatedSchema {
   tags?: string[];
   exclude?: boolean;
+  excludeAttributes?: string[];
 }
 
 /**
@@ -76,6 +79,7 @@ export interface SwaggerModelSchemaAttribute extends OpenApi.UpdatedSchema {
  * actions in the file and per-action documentation.
  */
 export interface SwaggerControllerAttribute {
+    exclude?: boolean;
     tags?: Array<Tag>;
     components?: OpenApi.Components;
     actions?: NameKeyMap<SwaggerActionAttribute>;
@@ -104,8 +108,16 @@ export interface SwaggerSailsModelAttributeDefinition extends Omit<Sails.Attribu
 }
 
 export interface SwaggerSailsModel extends Omit<Sails.Model, 'attributes'> {
+    identityPlural: string;
+    hiddenAttributes: string[];
+    criteriaWhitelist?: string[];
+    standardLimit?: number;
+    maximumLimit?: number;
+    jsonSchemas?: Record<string, Record<string, any>>;
     attributes: Record<string, SwaggerSailsModelAttributeDefinition>;
     swagger: SwaggerModelAttribute;
+    supportsHistory?: boolean;
+    logStripFields?: string[];
 }
 
 export interface SwaggerSailsActions2Input extends Sails.Actions2Input {

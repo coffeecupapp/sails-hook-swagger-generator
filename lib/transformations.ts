@@ -3,6 +3,7 @@ import { forEach, defaults, cloneDeep, groupBy, mapValues, map } from "lodash";
 import { Tag } from "swagger-schema-official";
 import { OpenApi } from "../types/openapi";
 import path from "path";
+import { blueprintActions } from "./utils";
 
 
 const transformSailsPathToSwaggerPath = (path: string): string => {
@@ -15,29 +16,11 @@ const transformSailsPathToSwaggerPath = (path: string): string => {
 /**
  * Maps from a Sails route path of the form `/path/:id` to a
  * Swagger path of the form `/path/{id}`.
- *
- * Also transform standard Sails primary key reference '{id}' to
- * '_{primaryKeyAttributeName}'.
- *
- * Add underscore to path variable names, used to differentiate the PK value
- * used for paths from query variables. Specifically, differentiate the PK value
- * used for shortcut blueprint update routes, which allow for PK update
- * using query parameters. Some validators expect unique names across all
- * parameter types.
  */
 export const transformSailsPathsToSwaggerPaths = (routes: SwaggerRouteInfo[]): void => {
 
   routes.map(route => {
-
     route.path = transformSailsPathToSwaggerPath(route.path);
-
-    if (route.model?.primaryKey) {
-      const pathVariable = '_' + route.model.primaryKey;
-      route.path = route.path.replace('{id}', `{${pathVariable}}`);
-      route.variables = route.variables.map(v => v === 'id' ? pathVariable : v);
-      route.optionalVariables = route.optionalVariables.map(v => v === 'id' ? pathVariable : v);
-    }
-
   });
 
 };
@@ -130,7 +113,7 @@ export const transformSailsPathsToSwaggerPaths = (routes: SwaggerRouteInfo[]): v
           // first route becomes 'aggregated' version
           const g = actionGroup[0];
           const prefix = g.match[1];
-          const pk = '_' + g.route.model!.primaryKey; // note '_' as per transformSailsPathsToSwaggerPaths()
+          const pk = g.route.model!.primaryKey;
           const shortcutRoutePart = g.match[3] || '';
           const childPart = g.match[4] || '';
           const aggregatedRoute = {
@@ -280,6 +263,12 @@ export const mergeControllerSwaggerIntoRouteInfo = (sails: Sails.Sails, routes: 
 
     const actionNameLookup = path.basename(route.action);
 
+    // Blueprint routes have no controller source file — swagger comes from model + blueprint templates
+    if (route.middlewareType === MiddlewareType.BLUEPRINT
+      || (route.model && route.blueprintAction && blueprintActions.includes(route.blueprintAction as any))) {
+      return;
+    }
+
     const controllerAction = controllers.actions[route.action];
     if (controllerAction) {
 
@@ -305,13 +294,17 @@ export const mergeControllerSwaggerIntoRouteInfo = (sails: Sails.Sails, routes: 
       const controllerFile = controllers.controllerFiles[controllerFileIdentity];
       if(controllerFile) {
         if (controllerFile.swagger) {
+          // Propagate controller-level exclude to all routes
+          if (controllerFile.swagger.exclude) {
+            mergeIntoDest({ exclude: true });
+          }
           if (controllerFile.swagger.actions) {
             mergeIntoDest(controllerFile.swagger.actions[actionNameLookup]);
           }
           mergeIntoDest(controllerFile.swagger.actions?.allactions);
         }
       } else {
-        sails.log.error(`ERROR: sails-hook-swagger-generator: Error resolving/loading controller file '${controllerFileIdentity}'`);
+        sails.log.warn(`sails-hook-swagger-generator: No controller file found for action '${controllerFileIdentity}'`);
       }
 
       /*
@@ -324,9 +317,7 @@ export const mergeControllerSwaggerIntoRouteInfo = (sails: Sails.Sails, routes: 
       }
 
     } else {
-      if(route.middlewareType === MiddlewareType.ACTION) {
-        sails.log.error(`ERROR: sails-hook-swagger-generator: Error resolving/loading controller action '${route.action}' source file`);
-      }
+      sails.log.warn(`sails-hook-swagger-generator: No controller source found for action '${route.action}'`);
     }
 
   });

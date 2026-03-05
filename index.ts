@@ -13,7 +13,7 @@ module.exports = (sails: Sails.Sails): Sails.Hook<SwaggerGenerator> => {
       __configKey__: {
         swaggerJsonPath: path.join(sails.config.appPath, '/swagger/swagger.json'),
         swagger: {
-          openapi: '3.0.0',
+          openapi: '3.1.0',
           info: {
             title: 'Swagger Json',
             description: 'This is a generated swagger json for your sails project',
