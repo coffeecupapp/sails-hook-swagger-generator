@@ -120,13 +120,26 @@ var parseModels = function (sails) {
             globalId: model.globalId,
             primaryKey: model.primaryKey,
             identity: model.identity,
+            // Some cc models override the lowercase Sails-default identity with a camelCase
+            // `_identity` (e.g. TeamAssignment → 'teamAssignment'). The blueprint's
+            // actionUtil.parseValues reads req.param(_identity || identity), so the request
+            // body wrapper key in the spec must match `_identity` when set.
+            _identity: model._identity,
             identityPlural: model._identity_plural || model.identity + 's',
             attributes: model.attributes,
             associations: model.associations,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             hiddenAttributes: model.hiddenAttributes || [],
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            readOnlyAttributes: model.readOnlyAttributes || [],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             criteriaWhitelist: model.criteriaWhitelist,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            fulltextColumns: model.fulltextColumns,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            likeColumns: model.likeColumns,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            populateable: model.populateable,
             standardLimit: model.standardLimit,
             maximumLimit: model.maximumLimit,
             jsonSchemas: model.jsonSchemas,

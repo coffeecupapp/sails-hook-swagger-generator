@@ -60,6 +60,13 @@ export interface SwaggerActionAttribute extends Omit<OpenApi.Operation, 'paramet
   parameters?: Array<OpenApi.Parameter>; // allow to be optional (for incremental change within hook)
   responses?: Record<string, OpenApi.Response>; // allow to be optional (for incremental change within hook)
   exclude?: boolean;
+  /**
+   * Text appended to the operation's description, separated by a blank line.
+   * If `description` is also set, the appendix follows that. If not, it follows
+   * the blueprint template's default description. Useful for adding model-specific
+   * notes (e.g. uniqueness constraints) without restating the boilerplate.
+   */
+  descriptionAppendix?: string;
 }
 
 /**
@@ -108,9 +115,14 @@ export interface SwaggerSailsModelAttributeDefinition extends Omit<Sails.Attribu
 }
 
 export interface SwaggerSailsModel extends Omit<Sails.Model, 'attributes'> {
+    _identity?: string;
     identityPlural: string;
     hiddenAttributes: string[];
+    readOnlyAttributes: string[];
     criteriaWhitelist?: string[];
+    fulltextColumns?: string[];
+    likeColumns?: string[];
+    populateable?: string[];
     standardLimit?: number;
     maximumLimit?: number;
     jsonSchemas?: Record<string, Record<string, any>>;

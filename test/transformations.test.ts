@@ -150,6 +150,7 @@ describe('Transformations', () => {
       identity: 'user',
       identityPlural: 'users',
       hiddenAttributes: [],
+      readOnlyAttributes: [],
       primaryKey: 'id',
       attributes: {},
       swagger: {

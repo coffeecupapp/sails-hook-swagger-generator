@@ -8,6 +8,7 @@ import { generateSchemas, generatePaths, generateDefaultModelTags, generateAttri
 import { OpenApi } from '../types/openapi';
 import { mergeModelJsDoc, mergeTags, mergeComponents, mergeControllerJsDoc, transformSailsPathsToSwaggerPaths, aggregateAssociationRoutes, mergeControllerSwaggerIntoRouteInfo } from './transformations';
 import { Tag } from 'swagger-schema-official';
+import pluralize = require('pluralize');
 
 export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, context: Sails.Hook<SwaggerGenerator>): Promise<OpenApi.OpenApi | undefined> => {
 
@@ -109,8 +110,16 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
       if (historyOp) {
         const historyModels = Object.values(models).filter(m => m.supportsHistory);
 
+        const shouldPluralize = sails.config.blueprints && sails.config.blueprints.pluralize;
+
         for (const model of historyModels) {
-          const concretePath = historyPathKey.replace('{modelIdentity}', model.identity);
+          // Match the blueprint hook's kebab-case + pluralize convention
+          let pathSegment = model.globalId
+            .replace(/[A-Z]/g, (c: string, i: number) => (i > 0 ? '-' : '') + c.toLowerCase());
+          if (shouldPluralize) {
+            pathSegment = pluralize(pathSegment);
+          }
+          const concretePath = historyPathKey.replace('{modelIdentity}', pathSegment);
 
           // Build oldState/newState schema from model attributes
           const stateProperties: Record<string, OpenApi.UpdatedSchema> = {};
@@ -281,20 +290,31 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
       return false;
     };
 
-    // Sort path keys: by tag, then blueprints before custom, then base path before {id} path
+    const isHistory = (path: string): boolean => path.endsWith('/history');
+
+    // Sort path keys: by tag, then CRUD blueprints first (base before {id}),
+    // then history, then custom actions alphabetically.
     const sortedKeys = Object.keys(paths).sort((a, b) => {
       const tagA = getTag(paths[a]);
       const tagB = getTag(paths[b]);
       if (tagA !== tagB) return tagA.localeCompare(tagB);
 
-      const bpA = hasBlueprint(paths[a]) ? 0 : 1;
-      const bpB = hasBlueprint(paths[b]) ? 0 : 1;
-      if (bpA !== bpB) return bpA - bpB;
+      const bpA = hasBlueprint(paths[a]);
+      const bpB = hasBlueprint(paths[b]);
+      if (bpA !== bpB) return bpA ? -1 : 1;
 
-      // Base path (e.g. /v1/absences) before param path (e.g. /v1/absences/{id})
-      const aHasParam = a.indexOf('{') >= 0;
-      const bHasParam = b.indexOf('{') >= 0;
-      if (aHasParam !== bHasParam) return aHasParam ? 1 : -1;
+      // Within blueprints: base path before {id} path
+      if (bpA && bpB) {
+        const aHasParam = a.indexOf('{') >= 0;
+        const bHasParam = b.indexOf('{') >= 0;
+        if (aHasParam !== bHasParam) return aHasParam ? 1 : -1;
+        return a.localeCompare(b);
+      }
+
+      // History comes before other custom actions
+      const hA = isHistory(a);
+      const hB = isHistory(b);
+      if (hA !== hB) return hA ? -1 : 1;
 
       return a.localeCompare(b);
     });

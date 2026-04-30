@@ -66,8 +66,9 @@ var parsers_1 = require("./parsers");
 var utils_1 = require("./utils");
 var generators_1 = require("./generators");
 var transformations_1 = require("./transformations");
+var pluralize = require("pluralize");
 exports.default = (function (sails, sailsRoutes, context) { return __awaiter(void 0, void 0, void 0, function () {
-    var hookConfig, blueprintActionTemplates, specifications, theDefaults, models, modelsJsDoc, controllers, controllersJsDoc, routes, defaultModelTags, historyPathKey, historyOp, historyModels, _i, historyModels_1, model, concretePath, stateProperties, stripFields, _a, _b, _c, name, attr, stateSchema, op, tagHasBlueprint, tagHasCustom, path, pathDef, _loop_1, verb, referencedTags, paths_1, verbOrder_1, asRecord_1, getTag_1, hasBlueprint_1, sortedKeys, sorted, _d, sortedKeys_1, key, pathDef, sortedVerbs, sortedPathDef, _e, sortedVerbs_1, verb, destPath;
+    var hookConfig, blueprintActionTemplates, specifications, theDefaults, models, modelsJsDoc, controllers, controllersJsDoc, routes, defaultModelTags, historyPathKey, historyOp, historyModels, shouldPluralize, _i, historyModels_1, model, pathSegment, concretePath, stateProperties, stripFields, _a, _b, _c, name, attr, stateSchema, op, tagHasBlueprint, tagHasCustom, path, pathDef, _loop_1, verb, referencedTags, paths_1, verbOrder_1, asRecord_1, getTag_1, hasBlueprint_1, isHistory_1, sortedKeys, sorted, _d, sortedKeys_1, key, pathDef, sortedVerbs, sortedPathDef, _e, sortedVerbs_1, verb, destPath;
     var _f;
     return __generator(this, function (_g) {
         switch (_g.label) {
@@ -144,9 +145,15 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                         historyOp = (_f = specifications.paths[historyPathKey]) === null || _f === void 0 ? void 0 : _f.get;
                         if (historyOp) {
                             historyModels = Object.values(models).filter(function (m) { return m.supportsHistory; });
+                            shouldPluralize = sails.config.blueprints && sails.config.blueprints.pluralize;
                             for (_i = 0, historyModels_1 = historyModels; _i < historyModels_1.length; _i++) {
                                 model = historyModels_1[_i];
-                                concretePath = historyPathKey.replace('{modelIdentity}', model.identity);
+                                pathSegment = model.globalId
+                                    .replace(/[A-Z]/g, function (c, i) { return (i > 0 ? '-' : '') + c.toLowerCase(); });
+                                if (shouldPluralize) {
+                                    pathSegment = pluralize(pathSegment);
+                                }
+                                concretePath = historyPathKey.replace('{modelIdentity}', pathSegment);
                                 stateProperties = {};
                                 stripFields = model.logStripFields || [];
                                 for (_a = 0, _b = Object.entries(model.attributes); _a < _b.length; _a++) {
@@ -314,20 +321,29 @@ exports.default = (function (sails, sailsRoutes, context) { return __awaiter(voi
                         }
                         return false;
                     };
+                    isHistory_1 = function (path) { return path.endsWith('/history'); };
                     sortedKeys = Object.keys(paths_1).sort(function (a, b) {
                         var tagA = getTag_1(paths_1[a]);
                         var tagB = getTag_1(paths_1[b]);
                         if (tagA !== tagB)
                             return tagA.localeCompare(tagB);
-                        var bpA = hasBlueprint_1(paths_1[a]) ? 0 : 1;
-                        var bpB = hasBlueprint_1(paths_1[b]) ? 0 : 1;
+                        var bpA = hasBlueprint_1(paths_1[a]);
+                        var bpB = hasBlueprint_1(paths_1[b]);
                         if (bpA !== bpB)
-                            return bpA - bpB;
-                        // Base path (e.g. /v1/absences) before param path (e.g. /v1/absences/{id})
-                        var aHasParam = a.indexOf('{') >= 0;
-                        var bHasParam = b.indexOf('{') >= 0;
-                        if (aHasParam !== bHasParam)
-                            return aHasParam ? 1 : -1;
+                            return bpA ? -1 : 1;
+                        // Within blueprints: base path before {id} path
+                        if (bpA && bpB) {
+                            var aHasParam = a.indexOf('{') >= 0;
+                            var bHasParam = b.indexOf('{') >= 0;
+                            if (aHasParam !== bHasParam)
+                                return aHasParam ? 1 : -1;
+                            return a.localeCompare(b);
+                        }
+                        // History comes before other custom actions
+                        var hA = isHistory_1(a);
+                        var hB = isHistory_1(b);
+                        if (hA !== hB)
+                            return hA ? -1 : 1;
                         return a.localeCompare(b);
                     });
                     sorted = {};

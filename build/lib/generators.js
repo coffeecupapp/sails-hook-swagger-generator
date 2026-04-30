@@ -351,7 +351,18 @@ var generateSchemas = function (models) {
                 || !!attribute.collection;
             if (!excluded) {
                 var jsonSchema = (_c = model.jsonSchemas) === null || _c === void 0 ? void 0 : _c[attributeName];
-                props[attributeName] = (0, exports.generateAttributeSchema)(attribute, attributeName, resolveGlobalId, jsonSchema);
+                var attrSchema = (0, exports.generateAttributeSchema)(attribute, attributeName, resolveGlobalId, jsonSchema);
+                // Mark Waterline-managed attributes as read-only so consumers (incl. LLMs) don't try
+                // to write them on create/update. The framework sets these regardless of input.
+                // Also mark anything the model declares in `readOnlyAttributes` — fields that are
+                // settable on create but rejected on update.
+                if (attributeName === model.primaryKey
+                    || attribute.autoCreatedAt === true
+                    || attribute.autoUpdatedAt === true
+                    || (model.readOnlyAttributes || []).indexOf(attributeName) >= 0) {
+                    attrSchema.readOnly = true;
+                }
+                props[attributeName] = attrSchema;
                 if (attribute.required)
                     required.push(attributeName);
             }
@@ -397,7 +408,7 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
         components.parameters = {};
     }
     (0, forEach_1.default)(routes, function (route) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0;
         if (((_a = route.swagger) === null || _a === void 0 ? void 0 : _a.exclude) === true) {
             return;
         }
@@ -583,10 +594,21 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
             if (isBlueprint) {
                 pathEntry['x-blueprint'] = true;
             }
-            (0, defaults_1.default)(pathEntry, __assign({ summary: subst_1(template_1.summary), description: subst_1(template_1.description), externalDocs: template_1.externalDocs || undefined, tags: ((_k = route.model.swagger.modelSchema) === null || _k === void 0 ? void 0 : _k.tags) || ((_m = (_l = route.model.swagger.actions) === null || _l === void 0 ? void 0 : _l.allactions) === null || _m === void 0 ? void 0 : _m.tags) || [route.model.globalId] }, (0, cloneDeep_1.default)((0, lodash_1.omit)(__assign(__assign({}, ((_o = route.model.swagger.actions) === null || _o === void 0 ? void 0 : _o.allactions) || {}), ((_p = route.model.swagger.actions) === null || _p === void 0 ? void 0 : _p[route.blueprintAction]) || {}), 'exclude'))));
+            var allactionsOverride = ((_k = route.model.swagger.actions) === null || _k === void 0 ? void 0 : _k.allactions) || {};
+            var actionOverride = ((_l = route.model.swagger.actions) === null || _l === void 0 ? void 0 : _l[route.blueprintAction]) || {};
+            var mergedOverride = (0, cloneDeep_1.default)((0, lodash_1.omit)(__assign(__assign({}, allactionsOverride), actionOverride), 'exclude', 'descriptionAppendix'));
+            // Append per-action descriptionAppendix to either user-supplied description or template default.
+            var descriptionAppendix = (_m = actionOverride.descriptionAppendix) !== null && _m !== void 0 ? _m : allactionsOverride.descriptionAppendix;
+            if (descriptionAppendix) {
+                var baseDescription = (_o = mergedOverride.description) !== null && _o !== void 0 ? _o : subst_1(template_1.description);
+                mergedOverride.description = baseDescription
+                    ? "".concat(baseDescription, "\n\n").concat(descriptionAppendix)
+                    : descriptionAppendix;
+            }
+            (0, defaults_1.default)(pathEntry, __assign({ summary: subst_1(template_1.summary), description: subst_1(template_1.description), externalDocs: template_1.externalDocs || undefined, tags: ((_p = route.model.swagger.modelSchema) === null || _p === void 0 ? void 0 : _p.tags) || ((_r = (_q = route.model.swagger.actions) === null || _q === void 0 ? void 0 : _q.allactions) === null || _r === void 0 ? void 0 : _r.tags) || [route.model.globalId] }, mergedOverride));
             // merge parameters from model actions and template (in that order)
-            (((_r = (_q = route.model.swagger.actions) === null || _q === void 0 ? void 0 : _q[route.blueprintAction]) === null || _r === void 0 ? void 0 : _r.parameters) || []).map(function (p) { return addParamIfDne(p); });
-            (((_t = (_s = route.model.swagger.actions) === null || _s === void 0 ? void 0 : _s.allactions) === null || _t === void 0 ? void 0 : _t.parameters) || []).map(function (p) { return addParamIfDne(p); });
+            (((_t = (_s = route.model.swagger.actions) === null || _s === void 0 ? void 0 : _s[route.blueprintAction]) === null || _t === void 0 ? void 0 : _t.parameters) || []).map(function (p) { return addParamIfDne(p); });
+            (((_v = (_u = route.model.swagger.actions) === null || _u === void 0 ? void 0 : _u.allactions) === null || _v === void 0 ? void 0 : _v.parameters) || []).map(function (p) { return addParamIfDne(p); });
             (template_1.parameters || []).map(function (parameter) {
                 // handle special case of PK parameter
                 if (parameter === 'primaryKeyPathParameter') {
@@ -607,12 +629,17 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                 addParamIfDne(parameter);
             });
             // merge responses from model actions
-            (0, defaults_1.default)(pathEntry.responses, (((_v = (_u = route.model.swagger.actions) === null || _u === void 0 ? void 0 : _u[route.blueprintAction]) === null || _v === void 0 ? void 0 : _v.responses) || {}), (((_x = (_w = route.model.swagger.actions) === null || _w === void 0 ? void 0 : _w.allactions) === null || _x === void 0 ? void 0 : _x.responses) || {}));
+            (0, defaults_1.default)(pathEntry.responses, (((_x = (_w = route.model.swagger.actions) === null || _w === void 0 ? void 0 : _w[route.blueprintAction]) === null || _x === void 0 ? void 0 : _x.responses) || {}), (((_z = (_y = route.model.swagger.actions) === null || _y === void 0 ? void 0 : _y.allactions) === null || _z === void 0 ? void 0 : _z.responses) || {}));
             var modifiers_1 = {
                 addPopulateQueryParam: function () {
-                    var _a;
-                    var assoc = ((_a = route.model) === null || _a === void 0 ? void 0 : _a.associations) || [];
-                    if (isParam('query', 'populate') || assoc.length == 0)
+                    var _a, _b;
+                    // Aerion uses a custom, opt-in populate mechanism: each model declares an explicit
+                    // `populateable: [...]` whitelist, and the find blueprint accepts exactly one of those
+                    // names at a time. Records are side-loaded at the top level of the response under the
+                    // related model's plural identity (JSON:API compound-document style), not nested into
+                    // each row. Models without `populateable` don't support the param at all.
+                    var populateable = (_b = (_a = route.model) === null || _a === void 0 ? void 0 : _a.populateable) !== null && _b !== void 0 ? _b : [];
+                    if (isParam('query', 'populate') || populateable.length === 0)
                         return;
                     pathEntry.parameters.push({
                         in: 'query',
@@ -620,11 +647,12 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         required: false,
                         schema: {
                             type: 'string',
-                            example: __spreadArray(['false'], (assoc.map(function (row) { return row.alias; }) || []), true).join(','),
+                            enum: populateable,
                         },
-                        description: 'If specified, overide the default automatic population process.'
-                            + ' Accepts a comma-separated list of attribute names for which to populate record values,'
-                            + ' or specify `false` to have no attributes populated.',
+                        description: 'Populate a related record by association name. Single association only —'
+                            + ' pass exactly one of the listed values, not a comma-separated list. Populated'
+                            + ' records are side-loaded at the top level of the response under the related'
+                            + ' model\'s plural identity, not nested into each row.',
                     });
                 },
                 addSelectQueryParam: function () {
@@ -683,16 +711,17 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         if (pathEntry.requestBody)
                             return;
                         var identity = route.model.identity;
+                        var wrapperKey = route.model._identity || identity;
                         pathEntry.requestBody = {
-                            description: subst_1('JSON dictionary representing the {globalId} instance to create.\n\n**Important:** The request body must be wrapped in a `' + identity + '` key — e.g. `{"' + identity + '": {…}}`.'),
+                            description: subst_1('JSON dictionary representing the {globalId} instance to create.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`.'),
                             required: true,
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'object',
-                                        required: [identity],
+                                        required: [wrapperKey],
                                         properties: (_a = {},
-                                            _a[identity] = { '$ref': "#/components/schemas/".concat(identity) },
+                                            _a[wrapperKey] = { '$ref': "#/components/schemas/".concat(identity) },
                                             _a),
                                     },
                                 },
@@ -720,16 +749,17 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         if (pathEntry.requestBody)
                             return;
                         var identity = route.model.identity;
+                        var wrapperKey = route.model._identity || identity;
                         pathEntry.requestBody = {
-                            description: subst_1('JSON dictionary representing the {globalId} fields to update.\n\n**Important:** The request body must be wrapped in a `' + identity + '` key — e.g. `{"' + identity + '": {…}}`. All fields are optional — only included fields will be modified.'),
+                            description: subst_1('JSON dictionary representing the {globalId} fields to update.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`. All fields are optional — only included fields will be modified.'),
                             required: true,
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'object',
-                                        required: [identity],
+                                        required: [wrapperKey],
                                         properties: (_a = {},
-                                            _a[identity] = { '$ref': "#/components/schemas/".concat(identity) },
+                                            _a[wrapperKey] = { '$ref': "#/components/schemas/".concat(identity) },
                                             _a),
                                     },
                                 },
@@ -823,6 +853,7 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                 addResultOfModel: function () {
                     var _a;
                     var identity = route.model.identity;
+                    var wrapperKey = route.model._identity || identity;
                     (0, defaults_1.default)(pathEntry.responses, {
                         '200': {
                             description: subst_1(template_1.resultDescription || '**{globalId}** record'),
@@ -831,7 +862,7 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                                     schema: {
                                         type: 'object',
                                         properties: (_a = {},
-                                            _a[identity] = { '$ref': '#/components/schemas/' + identity },
+                                            _a[wrapperKey] = { '$ref': '#/components/schemas/' + identity },
                                             _a),
                                     },
                                 },
@@ -943,6 +974,10 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                     });
                     if (whereIdx >= 0) {
                         var criteriaList = allCriteria.map(function (c) { return "`".concat(c, "`"); }).join(', ');
+                        var containsColumns = __spreadArray(__spreadArray([], (route.model.fulltextColumns || []), true), (route.model.likeColumns || []), true);
+                        var containsLine = containsColumns.length
+                            ? "The `contains` modifier is only supported on: ".concat(containsColumns.map(function (c) { return "`".concat(c, "`"); }).join(', '), ".")
+                            : 'The `contains` modifier is not supported on this model.';
                         pathEntry.parameters[whereIdx] = {
                             in: 'query',
                             name: 'where',
@@ -950,8 +985,8 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             schema: { type: 'string' },
                             description: 'A JSON-encoded [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language)'
                                 + " for advanced filtering. Only whitelisted criteria are supported: ".concat(criteriaList, ".")
-                                + ' Supports sub-attribute modifiers such as `contains`, `startsWith`, `>=`, `<=`, `>`, `<`, and `!=`'
-                                + ' for more powerful find-where requests.'
+                                + ' Sub-attribute modifiers such as `startsWith`, `>=`, `<=`, `>`, `<`, and `!=` are supported on any whitelisted criterion.'
+                                + " ".concat(containsLine)
                                 + (function () {
                                     var now = new Date();
                                     var y = now.getFullYear();
@@ -1002,7 +1037,7 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
         // final populate noting others above
         (0, defaults_1.default)(pathEntry, {
             summary: route.path || '',
-            tags: [((_y = route.actions2Machine) === null || _y === void 0 ? void 0 : _y.friendlyName) || route.defaultTagName],
+            tags: [((_0 = route.actions2Machine) === null || _0 === void 0 ? void 0 : _0.friendlyName) || route.defaultTagName],
         });
         (0, defaults_1.default)(pathEntry.responses, defaultsValues.responses, { '500': { description: 'Internal server error' } });
         // catch the case where defaultTagName not defined

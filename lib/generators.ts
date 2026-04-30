@@ -348,7 +348,20 @@ export const generateSchemas = (models: NameKeyMap<SwaggerSailsModel>): NameKeyM
             || !!attribute.collection;
           if (!excluded) {
             const jsonSchema = model.jsonSchemas?.[attributeName];
-            props[attributeName] = generateAttributeSchema(attribute, attributeName, resolveGlobalId, jsonSchema);
+            const attrSchema = generateAttributeSchema(attribute, attributeName, resolveGlobalId, jsonSchema);
+            // Mark Waterline-managed attributes as read-only so consumers (incl. LLMs) don't try
+            // to write them on create/update. The framework sets these regardless of input.
+            // Also mark anything the model declares in `readOnlyAttributes` — fields that are
+            // settable on create but rejected on update.
+            if (
+              attributeName === model.primaryKey
+              || attribute.autoCreatedAt === true
+              || attribute.autoUpdatedAt === true
+              || (model.readOnlyAttributes || []).indexOf(attributeName) >= 0
+            ) {
+              attrSchema.readOnly = true;
+            }
+            props[attributeName] = attrSchema;
             if (attribute.required) required!.push(attributeName);
           }
           return props
@@ -640,6 +653,22 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
         (pathEntry as any)['x-blueprint'] = true;
       }
 
+      const allactionsOverride = route.model.swagger.actions?.allactions || {};
+      const actionOverride = route.model.swagger.actions?.[route.blueprintAction] || {};
+      const mergedOverride = cloneDeep(omit({
+        ...allactionsOverride,
+        ...actionOverride,
+      }, 'exclude', 'descriptionAppendix'));
+
+      // Append per-action descriptionAppendix to either user-supplied description or template default.
+      const descriptionAppendix = actionOverride.descriptionAppendix ?? allactionsOverride.descriptionAppendix;
+      if (descriptionAppendix) {
+        const baseDescription = mergedOverride.description ?? subst(template.description);
+        mergedOverride.description = baseDescription
+          ? `${baseDescription}\n\n${descriptionAppendix}`
+          : descriptionAppendix;
+      }
+
       defaults(
         pathEntry,
         {
@@ -647,10 +676,7 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           description: subst(template.description),
           externalDocs: template.externalDocs || undefined,
           tags: route.model.swagger.modelSchema?.tags || route.model.swagger.actions?.allactions?.tags || [route.model.globalId],
-          ...cloneDeep(omit({
-            ...route.model.swagger.actions?.allactions || {},
-            ...route.model.swagger.actions?.[route.blueprintAction] || {},
-          }, 'exclude')),
+          ...mergedOverride,
         }
       );
 
@@ -688,19 +714,25 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
       const modifiers = {
 
         addPopulateQueryParam: () => {
-          const assoc = route.model?.associations || [];
-          if (isParam('query', 'populate') || assoc.length == 0) return;
+          // Aerion uses a custom, opt-in populate mechanism: each model declares an explicit
+          // `populateable: [...]` whitelist, and the find blueprint accepts exactly one of those
+          // names at a time. Records are side-loaded at the top level of the response under the
+          // related model's plural identity (JSON:API compound-document style), not nested into
+          // each row. Models without `populateable` don't support the param at all.
+          const populateable = route.model?.populateable ?? [];
+          if (isParam('query', 'populate') || populateable.length === 0) return;
           pathEntry.parameters.push({
             in: 'query',
             name: 'populate',
             required: false,
             schema: {
               type: 'string',
-              example: ['false', ...(assoc.map(row => row.alias) || [])].join(','),
+              enum: populateable,
             },
-            description: 'If specified, overide the default automatic population process.'
-              + ' Accepts a comma-separated list of attribute names for which to populate record values,'
-              + ' or specify `false` to have no attributes populated.',
+            description: 'Populate a related record by association name. Single association only —'
+              + ' pass exactly one of the listed values, not a comma-separated list. Populated'
+              + ' records are side-loaded at the top level of the response under the related'
+              + ' model\'s plural identity, not nested into each row.',
           });
 
         },
@@ -758,16 +790,17 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           } else {
             if (pathEntry.requestBody) return;
             const identity = route.model!.identity;
+            const wrapperKey = route.model!._identity || identity;
             pathEntry.requestBody = {
-              description: subst('JSON dictionary representing the {globalId} instance to create.\n\n**Important:** The request body must be wrapped in a `' + identity + '` key — e.g. `{"' + identity + '": {…}}`.'),
+              description: subst('JSON dictionary representing the {globalId} instance to create.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`.'),
               required: true,
               content: {
                 'application/json': {
                   schema: {
                     type: 'object',
-                    required: [identity],
+                    required: [wrapperKey],
                     properties: {
-                      [identity]: { '$ref': `#/components/schemas/${identity}` }
+                      [wrapperKey]: { '$ref': `#/components/schemas/${identity}` }
                     },
                   },
                 },
@@ -791,16 +824,17 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           } else {
             if (pathEntry.requestBody) return;
             const identity = route.model!.identity;
+            const wrapperKey = route.model!._identity || identity;
             pathEntry.requestBody = {
-              description: subst('JSON dictionary representing the {globalId} fields to update.\n\n**Important:** The request body must be wrapped in a `' + identity + '` key — e.g. `{"' + identity + '": {…}}`. All fields are optional — only included fields will be modified.'),
+              description: subst('JSON dictionary representing the {globalId} fields to update.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`. All fields are optional — only included fields will be modified.'),
               required: true,
               content: {
                 'application/json': {
                   schema: {
                     type: 'object',
-                    required: [identity],
+                    required: [wrapperKey],
                     properties: {
-                      [identity]: { '$ref': `#/components/schemas/${identity}` }
+                      [wrapperKey]: { '$ref': `#/components/schemas/${identity}` }
                     },
                   },
                 },
@@ -894,6 +928,7 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
 
         addResultOfModel: () => {
           const identity = route.model!.identity;
+          const wrapperKey = route.model!._identity || identity;
           defaults(pathEntry.responses, {
             '200': {
               description: subst(template.resultDescription || '**{globalId}** record'),
@@ -902,7 +937,7 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
                   schema: {
                     type: 'object',
                     properties: {
-                      [identity]: { '$ref': '#/components/schemas/' + identity },
+                      [wrapperKey]: { '$ref': '#/components/schemas/' + identity },
                     },
                   },
                 },
@@ -1017,6 +1052,13 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           });
           if (whereIdx >= 0) {
             const criteriaList = allCriteria.map(c => `\`${c}\``).join(', ');
+            const containsColumns = [
+              ...(route.model!.fulltextColumns || []),
+              ...(route.model!.likeColumns || []),
+            ];
+            const containsLine = containsColumns.length
+              ? `The \`contains\` modifier is only supported on: ${containsColumns.map(c => `\`${c}\``).join(', ')}.`
+              : 'The `contains` modifier is not supported on this model.';
             pathEntry.parameters[whereIdx] = {
               in: 'query',
               name: 'where',
@@ -1024,8 +1066,8 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
               schema: { type: 'string' },
               description: 'A JSON-encoded [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language)'
                 + ` for advanced filtering. Only whitelisted criteria are supported: ${criteriaList}.`
-                + ' Supports sub-attribute modifiers such as `contains`, `startsWith`, `>=`, `<=`, `>`, `<`, and `!=`'
-                + ' for more powerful find-where requests.'
+                + ' Sub-attribute modifiers such as `startsWith`, `>=`, `<=`, `>`, `<`, and `!=` are supported on any whitelisted criterion.'
+                + ` ${containsLine}`
                 + (() => {
                   const now = new Date();
                   const y = now.getFullYear();

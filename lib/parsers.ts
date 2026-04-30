@@ -50,13 +50,26 @@ export const parseModels = (sails: Sails.Sails): NameKeyMap<SwaggerSailsModel> =
       globalId: model.globalId,
       primaryKey: model.primaryKey,
       identity: model.identity,
+      // Some cc models override the lowercase Sails-default identity with a camelCase
+      // `_identity` (e.g. TeamAssignment → 'teamAssignment'). The blueprint's
+      // actionUtil.parseValues reads req.param(_identity || identity), so the request
+      // body wrapper key in the spec must match `_identity` when set.
+      _identity: (model as any)._identity,
       identityPlural: (model as any)._identity_plural || model.identity + 's',
       attributes: model.attributes,
       associations: model.associations,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       hiddenAttributes: (model as any).hiddenAttributes || [],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      readOnlyAttributes: (model as any).readOnlyAttributes || [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       criteriaWhitelist: (model as any).criteriaWhitelist,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fulltextColumns: (model as any).fulltextColumns,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      likeColumns: (model as any).likeColumns,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      populateable: (model as any).populateable,
       standardLimit: (model as any).standardLimit,
       maximumLimit: (model as any).maximumLimit,
       jsonSchemas: (model as any).jsonSchemas,

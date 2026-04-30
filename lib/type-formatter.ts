@@ -85,7 +85,9 @@ export const blueprintActionTemplates: BlueprintActionTemplates = {
     resultDescription: 'Responds with a single **{globalId}** record as a JSON dictionary',
     notFoundDescription: 'Response denoting **{globalId}** record with specified ID **NOT** found',
     // if functions, each called with (blueprintActionTemplate, routeInfo, pathEntry)
-    modifiers: [Modifiers.ADD_SELECT_QUERY_PARAM, Modifiers.ADD_OMIT_QUERY_PARAM, Modifiers.ADD_POPULATE_QUERY_PARAM, Modifiers.ADD_RESULT_OF_MODEL, Modifiers.ADD_RESULT_NOT_FOUND, Modifiers.ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE],
+    // Note: Aerion's findone blueprint does not implement populate (only find does), so
+    // ADD_POPULATE_QUERY_PARAM is intentionally omitted here.
+    modifiers: [Modifiers.ADD_SELECT_QUERY_PARAM, Modifiers.ADD_OMIT_QUERY_PARAM, Modifiers.ADD_RESULT_OF_MODEL, Modifiers.ADD_RESULT_NOT_FOUND, Modifiers.ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE],
   },
   find: {
     summary: 'List {globalId} (find where)',
