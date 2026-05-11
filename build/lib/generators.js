@@ -1,52 +1,21 @@
 "use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateDefaultModelTags = exports.generatePaths = exports.generateSchemas = exports.generateSchemaAsQueryParameters = exports.generateModelAssociationFKAttributeParameters = exports.generateModelAssociationFKAttributeSchemas = exports.generateAttributeSchema = void 0;
-var type_formatter_1 = require("./type-formatter");
-var assign_1 = __importDefault(require("lodash/assign"));
-var defaults_1 = __importDefault(require("lodash/defaults"));
-var mapKeys_1 = __importDefault(require("lodash/mapKeys"));
-var pick_1 = __importDefault(require("lodash/pick"));
-var keys_1 = __importDefault(require("lodash/keys"));
-var cloneDeep_1 = __importDefault(require("lodash/cloneDeep"));
-var isFunction_1 = __importDefault(require("lodash/isFunction"));
-var forEach_1 = __importDefault(require("lodash/forEach"));
-var set_1 = __importDefault(require("lodash/set"));
-var lodash_1 = require("lodash");
-var utils_1 = require("./utils");
+const type_formatter_1 = require("./type-formatter");
+const assign_1 = __importDefault(require("lodash/assign"));
+const defaults_1 = __importDefault(require("lodash/defaults"));
+const mapKeys_1 = __importDefault(require("lodash/mapKeys"));
+const pick_1 = __importDefault(require("lodash/pick"));
+const keys_1 = __importDefault(require("lodash/keys"));
+const cloneDeep_1 = __importDefault(require("lodash/cloneDeep"));
+const isFunction_1 = __importDefault(require("lodash/isFunction"));
+const forEach_1 = __importDefault(require("lodash/forEach"));
+const set_1 = __importDefault(require("lodash/set"));
+const lodash_1 = require("lodash");
+const utils_1 = require("./utils");
 /**
  * Generate Swagger schema content describing the specified Sails attribute.
  *
@@ -55,15 +24,14 @@ var utils_1 = require("./utils");
  * @see https://swagger.io/docs/specification/data-models/
  * @param {Record<string, any>} attribute Sails model attribute specification as per `Model.js` file
  */
-var generateAttributeSchema = function (attribute, attributeName, resolveGlobalId, jsonSchema) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-    var ai = attribute || {}, sts = type_formatter_1.swaggerTypes;
-    var type = ai.type || 'string';
-    var columnType = ((_a = ai.autoMigrations) === null || _a === void 0 ? void 0 : _a.columnType) || ai.columnType;
-    var autoIncrement = (_b = ai.autoMigrations) === null || _b === void 0 ? void 0 : _b.autoIncrement;
-    var schema = {};
-    var formatDesc = function (extra) {
-        var ret = [];
+const generateAttributeSchema = (attribute, attributeName, resolveGlobalId, jsonSchema) => {
+    const ai = attribute || {}, sts = type_formatter_1.swaggerTypes;
+    const type = ai.type || 'string';
+    const columnType = ai.autoMigrations?.columnType || ai.columnType;
+    const autoIncrement = ai.autoMigrations?.autoIncrement;
+    let schema = {};
+    const formatDesc = (extra) => {
+        const ret = [];
         if (extra)
             ret.push(extra);
         if (ai.description)
@@ -73,34 +41,37 @@ var generateAttributeSchema = function (attribute, attributeName, resolveGlobalI
     if (jsonSchema) {
         (0, assign_1.default)(schema, jsonSchema);
     }
-    else if (((_c = ai.meta) === null || _c === void 0 ? void 0 : _c.swagger) && 'type' in ai.meta.swagger) {
+    else if (ai.meta?.swagger && 'type' in ai.meta.swagger) {
         // OpenAPI 3 stipulates NO type as 'any', allow this by 'type' present but null to achieve this
         if (ai.meta.swagger.type)
             schema.type = ai.meta.swagger.type;
     }
     else if (ai.model) {
-        var displayName = resolveGlobalId ? resolveGlobalId(ai.model) : ai.model;
-        (0, assign_1.default)(schema, __assign(__assign({}, sts.integer), { description: formatDesc("ID of the associated **".concat(displayName, "** record")) }));
+        const displayName = resolveGlobalId ? resolveGlobalId(ai.model) : ai.model;
+        (0, assign_1.default)(schema, {
+            ...sts.integer,
+            description: formatDesc(`ID of the associated **${displayName}** record`),
+        });
     }
     else if (ai.collection) {
-        var displayName = resolveGlobalId ? resolveGlobalId(ai.collection) : ai.collection;
+        const displayName = resolveGlobalId ? resolveGlobalId(ai.collection) : ai.collection;
         (0, assign_1.default)(schema, {
-            description: formatDesc("Array of **".concat(displayName, "**'s or array of FK's when creating / updating / not populated")),
+            description: formatDesc(`Array of **${displayName}**'s or array of FK's when creating / updating / not populated`),
             type: 'array',
             items: { '$ref': '#/components/schemas/' + ai.collection },
         });
     }
     else if (type == 'number') {
-        var t = autoIncrement ? sts.integer : sts.double;
+        let t = autoIncrement ? sts.integer : sts.double;
         // Infer integer from isIn values (e.g. status: { isIn: [0, 1] })
-        var isInValues = ((_d = ai.validations) === null || _d === void 0 ? void 0 : _d.isIn) || ai.isIn;
-        var allIntegers = Array.isArray(isInValues) && isInValues.length > 0
-            && isInValues.every(function (v) { return typeof v === 'number' && Number.isInteger(v); });
-        if (((_e = ai.validations) === null || _e === void 0 ? void 0 : _e.isInteger) || allIntegers) {
+        const isInValues = ai.validations?.isIn || ai.isIn;
+        const allIntegers = Array.isArray(isInValues) && isInValues.length > 0
+            && isInValues.every((v) => typeof v === 'number' && Number.isInteger(v));
+        if (ai.validations?.isInteger || allIntegers) {
             t = sts.integer;
         }
         else if (columnType) {
-            var ct = columnType;
+            const ct = columnType;
             if (ct.match(/int/i))
                 t = sts.integer;
             else if (ct.match(/long/i))
@@ -121,9 +92,9 @@ var generateAttributeSchema = function (attribute, attributeName, resolveGlobalI
         (0, assign_1.default)(schema, (0, utils_1.deriveSwaggerTypeFromExample)(ai.example || ai.defaultsTo));
     }
     else if (type == 'ref') {
-        var t = void 0;
+        let t;
         if (columnType) {
-            var ct = columnType;
+            const ct = columnType;
             if (ct.match(/timestamp/i))
                 t = sts.datetime;
             else if (ct.match(/datetime/i))
@@ -137,7 +108,7 @@ var generateAttributeSchema = function (attribute, attributeName, resolveGlobalI
         }
         // fallback: infer from attribute name conventions
         if (t === undefined && (attributeName || ai.columnName)) {
-            var name = attributeName || ai.columnName;
+            const name = attributeName || ai.columnName;
             if (/At$/.test(name))
                 t = sts.datetime; // e.g. createdAt, deletedAt
             else if (/Date$/.test(name) || name === 'day')
@@ -154,9 +125,9 @@ var generateAttributeSchema = function (attribute, attributeName, resolveGlobalI
     else { // includes =='string'
         (0, assign_1.default)(schema, sts.string);
     }
-    var isIP = false;
+    let isIP = false;
     if (schema.type == 'string') {
-        var v = ai.validations;
+        const v = ai.validations;
         if (v) {
             if (v.isEmail)
                 schema.format = 'email';
@@ -173,24 +144,24 @@ var generateAttributeSchema = function (attribute, attributeName, resolveGlobalI
         }
     }
     // process Sails --> Swagger attribute mappings as per sailAttributePropertiesMap
-    (0, defaults_1.default)(schema, (0, mapKeys_1.default)((0, pick_1.default)(ai, (0, keys_1.default)(type_formatter_1.sailsAttributePropertiesMap)), function (v, k) { return type_formatter_1.sailsAttributePropertiesMap[k]; }));
+    (0, defaults_1.default)(schema, (0, mapKeys_1.default)((0, pick_1.default)(ai, (0, keys_1.default)(type_formatter_1.sailsAttributePropertiesMap)), (v, k) => type_formatter_1.sailsAttributePropertiesMap[k]));
     // process Sails --> Swagger attribute mappings as per validationsMap
-    (0, defaults_1.default)(schema, (0, mapKeys_1.default)((0, pick_1.default)(ai.validations, (0, keys_1.default)(type_formatter_1.validationsMap)), function (v, k) { return type_formatter_1.validationsMap[k]; }));
+    (0, defaults_1.default)(schema, (0, mapKeys_1.default)((0, pick_1.default)(ai.validations, (0, keys_1.default)(type_formatter_1.validationsMap)), (v, k) => type_formatter_1.validationsMap[k]));
     // OpenAPI 3.1: convert enum array to oneOf + const + title when TS enum object is provided
-    var enumObj = ((_f = ai.meta) === null || _f === void 0 ? void 0 : _f.enum) || ((_h = (_g = ai.meta) === null || _g === void 0 ? void 0 : _g.swagger) === null || _h === void 0 ? void 0 : _h.enum);
+    const enumObj = ai.meta?.enum || ai.meta?.swagger?.enum;
     if (enumObj && schema.enum) {
-        var isNumeric_1 = schema.enum.some(function (v) { return typeof v === 'number'; });
-        schema.oneOf = schema.enum.map(function (value) {
-            var title;
-            if (isNumeric_1) {
+        const isNumeric = schema.enum.some((v) => typeof v === 'number');
+        schema.oneOf = schema.enum.map(value => {
+            let title;
+            if (isNumeric) {
                 // numeric enum: reverse mapping gives us the name
                 title = enumObj[value];
             }
             else {
                 // string enum: find key by value
-                title = Object.keys(enumObj).find(function (k) { return enumObj[k] === value; }) || String(value);
+                title = Object.keys(enumObj).find(k => enumObj[k] === value) || String(value);
             }
-            return { const: value, title: title };
+            return { const: value, title };
         });
         delete schema.enum;
         delete schema.type;
@@ -199,7 +170,7 @@ var generateAttributeSchema = function (attribute, attributeName, resolveGlobalI
     // skip copying default into example; swagger-ui displays default separately
     // and duplicating it as example causes redundant display for truthy defaults
     // process final autoMigrations: unique
-    if ((_j = ai.autoMigrations) === null || _j === void 0 ? void 0 : _j.unique) {
+    if (ai.autoMigrations?.unique) {
         schema.uniqueItems = true;
     }
     // represent Sails `isIP` as one of ipv4/ipv6
@@ -219,17 +190,15 @@ var generateAttributeSchema = function (attribute, attributeName, resolveGlobalI
         schema.description = schema.description.trim();
     // note: required --> required[] (not here, needs to be done at model level)
     // finally, overwrite in custom swagger
-    if ((_k = ai.meta) === null || _k === void 0 ? void 0 : _k.swagger) {
+    if (ai.meta?.swagger) {
         // note: 'type' handled above
         (0, assign_1.default)(schema, (0, lodash_1.omit)(ai.meta.swagger, 'exclude', 'type', 'in', 'enum'));
     }
     // OpenAPI 3.1: convert nullable to type array
-    if (schema.nullable) {
-        if (schema.type) {
-            schema.type = [schema.type, 'null'];
-        }
-        delete schema.nullable;
+    if (schema.nullable === true && schema.type) {
+        schema.type = [schema.type, 'null'];
     }
+    delete schema.nullable;
     return schema;
 };
 exports.generateAttributeSchema = generateAttributeSchema;
@@ -242,25 +211,32 @@ exports.generateAttributeSchema = generateAttributeSchema;
  * @param model
  * @param models
  */
-var generateModelAssociationFKAttributeSchemas = function (model, aliasesToInclude, models) {
+const generateModelAssociationFKAttributeSchemas = (model, aliasesToInclude, models) => {
     if (!model.associations) {
         return [];
     }
-    return model.associations.map(function (association) {
+    return model.associations.map(association => {
         if (!aliasesToInclude || aliasesToInclude.indexOf(association.alias) < 0)
             return;
-        var targetModelIdentity = association.type === 'model' ? association.model : association.collection;
-        var targetModel = models[targetModelIdentity];
+        const targetModelIdentity = association.type === 'model' ? association.model : association.collection;
+        const targetModel = models[targetModelIdentity];
         if (!targetModel) {
             return; // data structure integrity issue should not occur
         }
-        var description = association.type === 'model' ?
-            "**".concat(model.globalId, "** record's foreign key value to use as the replacement for this attribute")
-            : "**".concat(model.globalId, "** record's foreign key values to use as the replacement for this collection");
-        var targetFKAttribute = targetModel.attributes[targetModel.primaryKey];
-        return (0, exports.generateAttributeSchema)(__assign(__assign({}, targetFKAttribute), { autoMigrations: __assign(__assign({}, (targetFKAttribute.autoMigrations || {})), { autoIncrement: false }), description: "".concat(description, " (**").concat(association.alias, "** association").concat(targetFKAttribute.description ? '; ' + targetFKAttribute.description : '', ")") }));
+        const description = association.type === 'model' ?
+            `**${model.globalId}** record's foreign key value to use as the replacement for this attribute`
+            : `**${model.globalId}** record's foreign key values to use as the replacement for this collection`;
+        const targetFKAttribute = targetModel.attributes[targetModel.primaryKey];
+        return (0, exports.generateAttributeSchema)({
+            ...targetFKAttribute,
+            autoMigrations: {
+                ...(targetFKAttribute.autoMigrations || {}),
+                autoIncrement: false, // autoIncrement not relevant for FK parameter
+            },
+            description: `${description} (**${association.alias}** association${targetFKAttribute.description ? '; ' + targetFKAttribute.description : ''})`
+        });
     })
-        .filter(function (parameter) { return parameter; });
+        .filter(parameter => parameter);
 };
 exports.generateModelAssociationFKAttributeSchemas = generateModelAssociationFKAttributeSchemas;
 /**
@@ -273,23 +249,30 @@ exports.generateModelAssociationFKAttributeSchemas = generateModelAssociationFKA
  * @param aliasesToInclude
  * @param models
  */
-var generateModelAssociationFKAttributeParameters = function (model, aliasesToInclude, models) {
+const generateModelAssociationFKAttributeParameters = (model, aliasesToInclude, models) => {
     if (!model.associations) {
         return [];
     }
-    return model.associations.map(function (association) {
+    return model.associations.map(association => {
         if (!aliasesToInclude || aliasesToInclude.indexOf(association.alias) < 0)
             return;
-        var targetModelIdentity = association.type === 'model' ? association.model : association.collection;
-        var targetModel = models[targetModelIdentity];
+        const targetModelIdentity = association.type === 'model' ? association.model : association.collection;
+        const targetModel = models[targetModelIdentity];
         if (!targetModel) {
             return; // data structure integrity issue should not occur
         }
-        var description = association.type === 'model' ?
-            "**".concat(model.globalId, "** record's foreign key value to use as the replacement for this attribute")
-            : "**".concat(model.globalId, "** record's foreign key values to use as the replacement for this collection");
-        var targetFKAttribute = targetModel.attributes[targetModel.primaryKey];
-        var targetFKAttributeSchema = (0, exports.generateAttributeSchema)(__assign(__assign({}, targetFKAttribute), { autoMigrations: __assign(__assign({}, (targetFKAttribute.autoMigrations || {})), { autoIncrement: false }), description: "".concat(description, " (**").concat(association.alias, "** association").concat(targetFKAttribute.description ? '; ' + targetFKAttribute.description : '', ")") }));
+        const description = association.type === 'model' ?
+            `**${model.globalId}** record's foreign key value to use as the replacement for this attribute`
+            : `**${model.globalId}** record's foreign key values to use as the replacement for this collection`;
+        const targetFKAttribute = targetModel.attributes[targetModel.primaryKey];
+        const targetFKAttributeSchema = (0, exports.generateAttributeSchema)({
+            ...targetFKAttribute,
+            autoMigrations: {
+                ...(targetFKAttribute.autoMigrations || {}),
+                autoIncrement: false, // autoIncrement not relevant for FK parameter
+            },
+            description: `${description} (**${association.alias}** association${targetFKAttribute.description ? '; ' + targetFKAttribute.description : ''})`
+        });
         return {
             in: 'query',
             name: association.alias,
@@ -300,13 +283,13 @@ var generateModelAssociationFKAttributeParameters = function (model, aliasesToIn
             },
         };
     })
-        .filter(function (parameter) { return parameter; });
+        .filter(parameter => parameter);
 };
 exports.generateModelAssociationFKAttributeParameters = generateModelAssociationFKAttributeParameters;
-var generateSchemaAsQueryParameters = function (schema) {
-    var required = schema.required || [];
-    return (0, lodash_1.map)(schema.properties || {}, function (property, name) {
-        var parameter = {
+const generateSchemaAsQueryParameters = (schema) => {
+    const required = schema.required || [];
+    return (0, lodash_1.map)(schema.properties || {}, (property, name) => {
+        const parameter = {
             in: 'query',
             name: name,
             schema: property,
@@ -329,29 +312,35 @@ exports.generateSchemaAsQueryParameters = generateSchemaAsQueryParameters;
  * @param models parsed Sails models as per `parsers.parseModels()`
  * @returns
  */
-var generateSchemas = function (models) {
-    var resolveGlobalId = function (identity) { var _a; return ((_a = models[identity]) === null || _a === void 0 ? void 0 : _a.globalId) || identity; };
+const generateSchemas = (models) => {
+    const resolveGlobalId = (identity) => models[identity]?.globalId || identity;
     return Object.keys(models)
-        .reduce(function (schemas, identity) {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
-        var model = models[identity];
-        if (((_b = (_a = model.swagger) === null || _a === void 0 ? void 0 : _a.modelSchema) === null || _b === void 0 ? void 0 : _b.exclude) === true) {
+        .reduce((schemas, identity) => {
+        const model = models[identity];
+        if (model.swagger?.modelSchema?.exclude === true) {
             return schemas;
         }
-        var schemaWithoutRequired = __assign({ type: 'object', description: ((_c = model.swagger.modelSchema) === null || _c === void 0 ? void 0 : _c.description) || "Aerion model **".concat(model.globalId, "**"), properties: {} }, (0, lodash_1.omit)(((_d = model.swagger) === null || _d === void 0 ? void 0 : _d.modelSchema) || {}, 'exclude', 'description', 'required', 'tags'));
-        var required = [];
-        var attributes = model.attributes || {};
-        var excludeAttributes = __spreadArray(__spreadArray([], (model.hiddenAttributes || []), true), (((_f = (_e = model.swagger) === null || _e === void 0 ? void 0 : _e.modelSchema) === null || _f === void 0 ? void 0 : _f.excludeAttributes) || []), true);
-        (0, defaults_1.default)(schemaWithoutRequired.properties, Object.keys(attributes).reduce(function (props, attributeName) {
-            var _a, _b, _c;
-            var attribute = model.attributes[attributeName];
-            var excluded = ((_b = (_a = attribute.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true
+        const schemaWithoutRequired = {
+            type: 'object',
+            description: model.swagger.modelSchema?.description || `Aerion model **${model.globalId}**`,
+            properties: {},
+            ...(0, lodash_1.omit)(model.swagger?.modelSchema || {}, 'exclude', 'description', 'required', 'tags'),
+        };
+        let required = [];
+        const attributes = model.attributes || {};
+        const excludeAttributes = [
+            ...(model.hiddenAttributes || []),
+            ...(model.swagger?.modelSchema?.excludeAttributes || []),
+        ];
+        (0, defaults_1.default)(schemaWithoutRequired.properties, Object.keys(attributes).reduce((props, attributeName) => {
+            const attribute = model.attributes[attributeName];
+            const excluded = attribute.meta?.swagger?.exclude === true
                 || excludeAttributes.indexOf(attributeName) >= 0
                 || attributeName.startsWith('_')
                 || !!attribute.collection;
             if (!excluded) {
-                var jsonSchema = (_c = model.jsonSchemas) === null || _c === void 0 ? void 0 : _c[attributeName];
-                var attrSchema = (0, exports.generateAttributeSchema)(attribute, attributeName, resolveGlobalId, jsonSchema);
+                const jsonSchema = model.jsonSchemas?.[attributeName];
+                const attrSchema = (0, exports.generateAttributeSchema)(attribute, attributeName, resolveGlobalId, jsonSchema);
                 // Mark Waterline-managed attributes as read-only so consumers (incl. LLMs) don't try
                 // to write them on create/update. The framework sets these regardless of input.
                 // Also mark anything the model declares in `readOnlyAttributes` — fields that are
@@ -368,15 +357,15 @@ var generateSchemas = function (models) {
             }
             return props;
         }, {}));
-        var withoutRequiredName = "".concat(model.identity, "-without-required-constraint");
-        var schema = {
+        const withoutRequiredName = `${model.identity}-without-required-constraint`;
+        const schema = {
             type: 'object',
             allOf: [
-                { '$ref': "#/components/schemas/".concat(withoutRequiredName) },
+                { '$ref': `#/components/schemas/${withoutRequiredName}` },
             ],
         };
-        if ((_h = (_g = model.swagger) === null || _g === void 0 ? void 0 : _g.modelSchema) === null || _h === void 0 ? void 0 : _h.required) {
-            required = __spreadArray([], model.swagger.modelSchema.required, true);
+        if (model.swagger?.modelSchema?.required) {
+            required = [...model.swagger.modelSchema.required];
         }
         if (required.length > 0) {
             schema.allOf.push({ required: required });
@@ -399,36 +388,44 @@ exports.generateSchemas = generateSchemas;
  * @param defaultsValues
  * @param models
  */
-var generatePaths = function (routes, templates, defaultsValues, specification, models, sails) {
-    var resolveGlobalId = function (identity) { var _a; return ((_a = models[identity]) === null || _a === void 0 ? void 0 : _a.globalId) || identity; };
-    var paths = {};
-    var tags = specification.tags;
-    var components = specification.components;
+const generatePaths = (routes, templates, defaultsValues, specification, models, sails) => {
+    const resolveGlobalId = (identity) => models[identity]?.globalId || identity;
+    const paths = {};
+    const tags = specification.tags;
+    const components = specification.components;
     if (!components.parameters) {
         components.parameters = {};
     }
-    (0, forEach_1.default)(routes, function (route) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0;
-        if (((_a = route.swagger) === null || _a === void 0 ? void 0 : _a.exclude) === true) {
+    (0, forEach_1.default)(routes, route => {
+        if (route.swagger?.exclude === true) {
             return;
         }
         /* overwrite: summary, description, externalDocs, operationId, tags, requestBody, servers, security
          * merge: parameters (by in+name), responses (by statusCode) */
-        var pathEntry = __assign({ summary: undefined, description: undefined, externalDocs: undefined, operationId: undefined, tags: undefined, parameters: [], responses: {} }, (0, cloneDeep_1.default)((0, lodash_1.omit)(route.swagger || {}, 'exclude')));
-        var resolveParameterRef = function (p) {
-            var specWithDefaultParametersToBeMerged = {
+        const pathEntry = {
+            summary: undefined,
+            description: undefined,
+            externalDocs: undefined,
+            operationId: undefined,
+            tags: undefined,
+            parameters: [],
+            responses: {},
+            ...(0, cloneDeep_1.default)((0, lodash_1.omit)(route.swagger || {}, 'exclude')),
+        };
+        const resolveParameterRef = (p) => {
+            const specWithDefaultParametersToBeMerged = {
                 components: { parameters: type_formatter_1.blueprintParameterTemplates }
             };
             // resolve first with current spec, then try template params to be added later
             return ((0, utils_1.resolveRef)(specification, p) || (0, utils_1.resolveRef)(specWithDefaultParametersToBeMerged, p));
         };
-        var isParam = function (inType, name) {
+        const isParam = (inType, name) => {
             return !!pathEntry.parameters
-                .map(function (parameter) { return resolveParameterRef(parameter); })
-                .find(function (parameter) { return parameter && 'in' in parameter && parameter.in == inType && parameter.name == name; });
+                .map(parameter => resolveParameterRef(parameter))
+                .find(parameter => parameter && 'in' in parameter && parameter.in == inType && parameter.name == name);
         };
-        var addParamIfDne = function (p) {
-            var resolved = resolveParameterRef(p);
+        const addParamIfDne = (p) => {
+            const resolved = resolveParameterRef(p);
             if (resolved && 'in' in resolved) {
                 if (!isParam(resolved.in, resolved.name)) {
                     pathEntry.parameters.push(p);
@@ -437,27 +434,28 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
         };
         if (route.actionType === 'actions2') {
             // note: check before blueprint template as these may override template for specific action(s)
-            var patternVariables_1 = route.variables || [];
-            if ((_b = route.actions2Machine) === null || _b === void 0 ? void 0 : _b.inputs) {
-                (0, forEach_1.default)(route.actions2Machine.inputs, function (value, key) {
-                    var _a;
-                    var _b, _c, _d, _e;
-                    if (((_c = (_b = value.meta) === null || _b === void 0 ? void 0 : _b.swagger) === null || _c === void 0 ? void 0 : _c.exclude) === true) {
+            const patternVariables = route.variables || [];
+            if (route.actions2Machine?.inputs) {
+                (0, forEach_1.default)(route.actions2Machine.inputs, (value, key) => {
+                    if (value.meta?.swagger?.exclude === true) {
                         return;
                     }
-                    var _in = (_e = (_d = value.meta) === null || _d === void 0 ? void 0 : _d.swagger) === null || _e === void 0 ? void 0 : _e.in;
+                    let _in = value.meta?.swagger?.in;
                     if (!_in) {
-                        _in = patternVariables_1.indexOf(key) >= 0 ? 'path' : 'query';
+                        _in = patternVariables.indexOf(key) >= 0 ? 'path' : 'query';
                     }
                     // compose attribute definition
-                    var description = value.description, _attribute = __rest(value, ["description"]);
-                    var attribute = __assign(__assign({}, (0, lodash_1.omit)(_attribute, utils_1.attributeValidations)), { validations: (0, pick_1.default)(_attribute, utils_1.attributeValidations) });
+                    const { description, ..._attribute } = value;
+                    const attribute = {
+                        ...(0, lodash_1.omit)(_attribute, utils_1.attributeValidations),
+                        validations: (0, pick_1.default)(_attribute, utils_1.attributeValidations),
+                    };
                     if (!attribute.type && 'example' in attribute) { // derive type if not specified (optional for actions2)
                         (0, defaults_1.default)(attribute, (0, utils_1.deriveSwaggerTypeFromExample)(attribute.example || attribute.defaultsTo));
                     }
                     if (_in === 'body') {
                         if (!['put', 'post', 'patch'].includes(route.verb)) {
-                            sails.log.warn("WARNING: sails-hook-swagger-generator: Route '".concat(route.verb, " ").concat(route.path, "' cannot contain 'requestBody'; ignoring input '").concat(key, " for generated Swagger"));
+                            sails.log.warn(`WARNING: sails-hook-swagger-generator: Route '${route.verb} ${route.path}' cannot contain 'requestBody'; ignoring input '${key} for generated Swagger`);
                             return;
                         }
                         // add to request body if we can do so cleanly
@@ -467,7 +465,7 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         if (!('content' in pathEntry.requestBody)) {
                             return; // could be reference --> in which case do not override
                         }
-                        var rbc = pathEntry.requestBody.content;
+                        const rbc = pathEntry.requestBody.content;
                         if (!rbc['application/json']) {
                             rbc['application/json'] = {};
                         }
@@ -478,7 +476,7 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             && rbc['application/json'].schema.type === 'object'
                             && rbc['application/json'].schema.properties) {
                             // if not reference and of type 'object' --> consider adding new property (but don't overwrite)
-                            (0, defaults_1.default)(rbc['application/json'].schema.properties, (_a = {}, _a[key] = (0, exports.generateAttributeSchema)(attribute), _a));
+                            (0, defaults_1.default)(rbc['application/json'].schema.properties, { [key]: (0, exports.generateAttributeSchema)(attribute) });
                         }
                     }
                     else {
@@ -491,30 +489,32 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             name: key,
                             required: value.required || false,
                             schema: (0, exports.generateAttributeSchema)(attribute),
-                            description: description
+                            description
                         });
                     }
                 });
             }
-            if ((_c = route.actions2Machine) === null || _c === void 0 ? void 0 : _c.exits) {
-                var exitResponses_1 = {};
+            if (route.actions2Machine?.exits) {
+                const exitResponses = {};
                 // status to determine whether 'content' can be removed in simple cases
-                var defaultOnly_1 = {};
+                const defaultOnly = {};
                 // actions2 may specify more than one 'exit' per 'statusCode' --> use oneOf (and attempt to merge)
-                (0, forEach_1.default)(route.actions2Machine.exits, function (exit, exitName) {
-                    var _a, _b;
-                    if (((_b = (_a = exit.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) {
+                (0, forEach_1.default)(route.actions2Machine.exits, (exit, exitName) => {
+                    if (exit.meta?.swagger?.exclude === true) {
                         return;
                     }
-                    var _c = type_formatter_1.actions2Responses[exitName] || type_formatter_1.actions2Responses.success, statusCode = _c.statusCode, description = _c.description;
-                    var defaultDescription = description;
+                    let { statusCode, description } = type_formatter_1.actions2Responses[exitName] || type_formatter_1.actions2Responses.success;
+                    const defaultDescription = description;
                     statusCode = exit.statusCode || statusCode;
                     description = exit.description || description;
-                    var schema = __assign(__assign({ example: exit.outputExample }, (0, utils_1.deriveSwaggerTypeFromExample)(exit.outputExample || '')), { description: description });
+                    const schema = {
+                        example: exit.outputExample,
+                        ...(0, utils_1.deriveSwaggerTypeFromExample)(exit.outputExample || ''),
+                        description: description,
+                    };
                     // XXX TODO review support for responseType, viewTemplatePath
-                    var addToContentJsonSchemaOneOfIfDne = function () {
-                        var _a, _b, _c;
-                        var r = exitResponses_1[statusCode];
+                    const addToContentJsonSchemaOneOfIfDne = () => {
+                        const r = exitResponses[statusCode];
                         // add to response if can do so cleanly
                         if (!r.content)
                             r.content = {};
@@ -523,70 +523,71 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         if (!r.content['application/json'].schema)
                             r.content['application/json'].schema = { oneOf: [] };
                         // if schema with 'oneOf' exists, add new schema content
-                        var existingSchema = (_b = (_a = r.content) === null || _a === void 0 ? void 0 : _a['application/json']) === null || _b === void 0 ? void 0 : _b.schema;
+                        const existingSchema = r.content?.['application/json']?.schema;
                         if (existingSchema && 'oneOf' in existingSchema) {
-                            (_c = existingSchema.oneOf) === null || _c === void 0 ? void 0 : _c.push(schema);
+                            existingSchema.oneOf?.push(schema);
                         }
                         else {
                             // skip --> custom schema overrides auto-generated
                         }
                     };
-                    if (exitResponses_1[statusCode]) {
+                    if (exitResponses[statusCode]) {
                         // this statusCode already exists --> add as alternative if 'oneOf' present (or can be cleanly added)
                         addToContentJsonSchemaOneOfIfDne();
-                        defaultOnly_1[statusCode] = false;
+                        defaultOnly[statusCode] = false;
                     }
                     else if (pathEntry.responses[statusCode]) {
                         // if not exists, check for response defined in source swagger and merge/massage to suit 'application/json' oneOf
-                        exitResponses_1[statusCode] = (0, cloneDeep_1.default)(pathEntry.responses[statusCode]);
+                        exitResponses[statusCode] = (0, cloneDeep_1.default)(pathEntry.responses[statusCode]);
                         addToContentJsonSchemaOneOfIfDne();
-                        defaultOnly_1[statusCode] = false;
+                        defaultOnly[statusCode] = false;
                     }
                     else {
                         // dne, so add
-                        exitResponses_1[statusCode] = {
+                        exitResponses[statusCode] = {
                             description: defaultDescription,
                             content: { 'application/json': { schema: { oneOf: [schema] } }, }
                         };
-                        defaultOnly_1[statusCode] = exit.outputExample === undefined;
+                        defaultOnly[statusCode] = exit.outputExample === undefined;
                     }
                 });
                 // remove oneOf for single entries and move description back to top-level
-                (0, forEach_1.default)(exitResponses_1, function (resp, statusCode) {
-                    var _a, _b;
-                    if ((_b = (_a = resp.content) === null || _a === void 0 ? void 0 : _a['application/json'].schema) === null || _b === void 0 ? void 0 : _b.oneOf) {
-                        var arr = resp.content['application/json'].schema.oneOf;
+                (0, forEach_1.default)(exitResponses, (resp, statusCode) => {
+                    if (resp.content?.['application/json'].schema?.oneOf) {
+                        const arr = resp.content['application/json'].schema.oneOf;
                         if (arr.length === 1) {
                             resp.content['application/json'].schema = arr[0];
                             if ('description' in arr[0])
                                 resp.description = arr[0].description;
-                            if (defaultOnly_1[statusCode])
+                            if (defaultOnly[statusCode])
                                 delete resp.content;
                         }
                     }
                 });
-                pathEntry.responses = __assign(__assign({}, pathEntry.responses), exitResponses_1);
-                (0, forEach_1.default)(pathEntry.responses, function (resp, statusCode) {
-                    var _a;
+                pathEntry.responses = {
+                    ...pathEntry.responses,
+                    ...exitResponses,
+                };
+                (0, forEach_1.default)(pathEntry.responses, (resp, statusCode) => {
                     if (!resp.description)
-                        resp.description = ((_a = exitResponses_1[statusCode]) === null || _a === void 0 ? void 0 : _a.description) || '-';
+                        resp.description = exitResponses[statusCode]?.description || '-';
                 });
             }
             // merge actions2 summary and description
             (0, defaults_1.default)(pathEntry, {
-                summary: ((_d = route.actions2Machine) === null || _d === void 0 ? void 0 : _d.friendlyName) || undefined,
-                description: ((_e = route.actions2Machine) === null || _e === void 0 ? void 0 : _e.description) || undefined,
+                summary: route.actions2Machine?.friendlyName || undefined,
+                description: route.actions2Machine?.description || undefined,
             });
         } // of if(actions2)
         // handle blueprint actions and related documentation (from model and blueprint template)
         if (route.model && route.blueprintAction) {
-            var isBlueprint = utils_1.blueprintActions.includes(route.blueprintAction);
-            if ((((_g = (_f = route.model.swagger) === null || _f === void 0 ? void 0 : _f.modelSchema) === null || _g === void 0 ? void 0 : _g.exclude) === true && isBlueprint)
-                || ((_j = (_h = route.model.swagger.actions) === null || _h === void 0 ? void 0 : _h[route.blueprintAction]) === null || _j === void 0 ? void 0 : _j.exclude) === true) {
+            const isBlueprint = utils_1.blueprintActions.includes(route.blueprintAction);
+            if ((route.model.swagger?.modelSchema?.exclude === true && isBlueprint)
+                || route.model.swagger.actions?.[route.blueprintAction]?.exclude === true) {
                 return;
             }
-            var template_1 = templates[route.blueprintAction] || {};
-            var subst_1 = function (str) { return str ? str.replace('{globalId}', route.model.globalId) : undefined; };
+            const template = templates[route.blueprintAction] || {};
+            const subst = (str) => str ? str.replace('{globalId}', route.model.globalId) : undefined;
             /* overwrite: summary, description, externalDocs, operationId, tags, requestBody, servers, security
              * merge: parameters (by in+name), responses (by statusCode) */
             // Mark actual blueprint CRUD operations with x-blueprint for downstream classification
@@ -594,34 +595,43 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
             if (isBlueprint) {
                 pathEntry['x-blueprint'] = true;
             }
-            var allactionsOverride = ((_k = route.model.swagger.actions) === null || _k === void 0 ? void 0 : _k.allactions) || {};
-            var actionOverride = ((_l = route.model.swagger.actions) === null || _l === void 0 ? void 0 : _l[route.blueprintAction]) || {};
-            var mergedOverride = (0, cloneDeep_1.default)((0, lodash_1.omit)(__assign(__assign({}, allactionsOverride), actionOverride), 'exclude', 'descriptionAppendix'));
+            const allactionsOverride = route.model.swagger.actions?.allactions || {};
+            const actionOverride = route.model.swagger.actions?.[route.blueprintAction] || {};
+            const mergedOverride = (0, cloneDeep_1.default)((0, lodash_1.omit)({
+                ...allactionsOverride,
+                ...actionOverride,
+            }, 'exclude', 'descriptionAppendix'));
             // Append per-action descriptionAppendix to either user-supplied description or template default.
-            var descriptionAppendix = (_m = actionOverride.descriptionAppendix) !== null && _m !== void 0 ? _m : allactionsOverride.descriptionAppendix;
+            const descriptionAppendix = actionOverride.descriptionAppendix ?? allactionsOverride.descriptionAppendix;
             if (descriptionAppendix) {
-                var baseDescription = (_o = mergedOverride.description) !== null && _o !== void 0 ? _o : subst_1(template_1.description);
+                const baseDescription = mergedOverride.description ?? subst(template.description);
                 mergedOverride.description = baseDescription
-                    ? "".concat(baseDescription, "\n\n").concat(descriptionAppendix)
+                    ? `${baseDescription}\n\n${descriptionAppendix}`
                     : descriptionAppendix;
             }
-            (0, defaults_1.default)(pathEntry, __assign({ summary: subst_1(template_1.summary), description: subst_1(template_1.description), externalDocs: template_1.externalDocs || undefined, tags: ((_p = route.model.swagger.modelSchema) === null || _p === void 0 ? void 0 : _p.tags) || ((_r = (_q = route.model.swagger.actions) === null || _q === void 0 ? void 0 : _q.allactions) === null || _r === void 0 ? void 0 : _r.tags) || [route.model.globalId] }, mergedOverride));
+            (0, defaults_1.default)(pathEntry, {
+                summary: subst(template.summary),
+                description: subst(template.description),
+                externalDocs: template.externalDocs || undefined,
+                tags: route.model.swagger.modelSchema?.tags || route.model.swagger.actions?.allactions?.tags || [route.model.globalId],
+                ...mergedOverride,
+            });
             // merge parameters from model actions and template (in that order)
-            (((_t = (_s = route.model.swagger.actions) === null || _s === void 0 ? void 0 : _s[route.blueprintAction]) === null || _t === void 0 ? void 0 : _t.parameters) || []).map(function (p) { return addParamIfDne(p); });
-            (((_v = (_u = route.model.swagger.actions) === null || _u === void 0 ? void 0 : _u.allactions) === null || _v === void 0 ? void 0 : _v.parameters) || []).map(function (p) { return addParamIfDne(p); });
-            (template_1.parameters || []).map(function (parameter) {
+            (route.model.swagger.actions?.[route.blueprintAction]?.parameters || []).map(p => addParamIfDne(p));
+            (route.model.swagger.actions?.allactions?.parameters || []).map(p => addParamIfDne(p));
+            (template.parameters || []).map(parameter => {
                 // handle special case of PK parameter
                 if (parameter === 'primaryKeyPathParameter') {
-                    var primaryKey = route.model.primaryKey;
-                    var attributeInfo = route.model.attributes[primaryKey];
-                    var pname = 'ModelPKParam-' + route.model.identity;
+                    const primaryKey = route.model.primaryKey;
+                    const attributeInfo = route.model.attributes[primaryKey];
+                    const pname = 'ModelPKParam-' + route.model.identity;
                     if (components.parameters && !components.parameters[pname]) {
                         components.parameters[pname] = {
                             in: 'path',
                             name: primaryKey,
                             required: true,
                             schema: (0, exports.generateAttributeSchema)(attributeInfo),
-                            description: subst_1('The desired **{globalId}** record\'s primary key value'),
+                            description: subst('The desired **{globalId}** record\'s primary key value'),
                         };
                     }
                     parameter = { $ref: '#/components/parameters/' + pname };
@@ -629,16 +639,15 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                 addParamIfDne(parameter);
             });
             // merge responses from model actions
-            (0, defaults_1.default)(pathEntry.responses, (((_x = (_w = route.model.swagger.actions) === null || _w === void 0 ? void 0 : _w[route.blueprintAction]) === null || _x === void 0 ? void 0 : _x.responses) || {}), (((_z = (_y = route.model.swagger.actions) === null || _y === void 0 ? void 0 : _y.allactions) === null || _z === void 0 ? void 0 : _z.responses) || {}));
-            var modifiers_1 = {
-                addPopulateQueryParam: function () {
-                    var _a, _b;
+            (0, defaults_1.default)(pathEntry.responses, (route.model.swagger.actions?.[route.blueprintAction]?.responses || {}), (route.model.swagger.actions?.allactions?.responses || {}));
+            const modifiers = {
+                addPopulateQueryParam: () => {
                     // Aerion uses a custom, opt-in populate mechanism: each model declares an explicit
                     // `populateable: [...]` whitelist, and the find blueprint accepts exactly one of those
                     // names at a time. Records are side-loaded at the top level of the response under the
                     // related model's plural identity (JSON:API compound-document style), not nested into
                     // each row. Models without `populateable` don't support the param at all.
-                    var populateable = (_b = (_a = route.model) === null || _a === void 0 ? void 0 : _a.populateable) !== null && _b !== void 0 ? _b : [];
+                    const populateable = route.model?.populateable ?? [];
                     if (isParam('query', 'populate') || populateable.length === 0)
                         return;
                     pathEntry.parameters.push({
@@ -655,11 +664,11 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             + ' model\'s plural identity, not nested into each row.',
                     });
                 },
-                addSelectQueryParam: function () {
+                addSelectQueryParam: () => {
                     if (isParam('query', 'select'))
                         return;
-                    var attributes = route.model.attributes || {};
-                    var csv = (0, lodash_1.reduce)(attributes, function (acc, a, n) { var _a, _b; return ((((_b = (_a = a.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) ? acc : __spreadArray(__spreadArray([], acc, true), [n], false)); }, []);
+                    const attributes = route.model.attributes || {};
+                    const csv = (0, lodash_1.reduce)(attributes, (acc, a, n) => ((a.meta?.swagger?.exclude === true) ? acc : [...acc, n]), []);
                     pathEntry.parameters.push({
                         in: 'query',
                         name: 'select',
@@ -673,11 +682,11 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             + ' Not valid for plural (“collection”) association attributes.',
                     });
                 },
-                addOmitQueryParam: function () {
+                addOmitQueryParam: () => {
                     if (isParam('query', 'omit'))
                         return;
-                    var attributes = route.model.attributes || {};
-                    var csv = (0, lodash_1.reduce)(attributes, function (acc, a, n) { var _a, _b; return ((((_b = (_a = a.meta) === null || _a === void 0 ? void 0 : _a.swagger) === null || _b === void 0 ? void 0 : _b.exclude) === true) ? acc : __spreadArray(__spreadArray([], acc, true), [n], false)); }, []);
+                    const attributes = route.model.attributes || {};
+                    const csv = (0, lodash_1.reduce)(attributes, (acc, a, n) => ((a.meta?.swagger?.exclude === true) ? acc : [...acc, n]), []);
                     pathEntry.parameters.push({
                         in: 'query',
                         name: 'omit',
@@ -691,15 +700,13 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             + ' Not valid for plural (“collection”) association attributes.',
                     });
                 },
-                addModelBodyParam: function () {
-                    var _a;
-                    var _b;
+                addModelBodyParam: () => {
                     if (route.isShortcutBlueprintRoute) {
-                        var schema = (_b = specification.components.schemas) === null || _b === void 0 ? void 0 : _b[route.model.identity];
+                        const schema = specification.components.schemas?.[route.model.identity];
                         if (schema) {
-                            var resolvedSchema = (0, utils_1.unrollSchema)(specification, schema);
+                            const resolvedSchema = (0, utils_1.unrollSchema)(specification, schema);
                             if (resolvedSchema) {
-                                (0, exports.generateSchemaAsQueryParameters)(resolvedSchema).map(function (p) {
+                                (0, exports.generateSchemaAsQueryParameters)(resolvedSchema).map(p => {
                                     if (isParam('query', p.name))
                                         return;
                                     pathEntry.parameters.push(p);
@@ -710,34 +717,32 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                     else {
                         if (pathEntry.requestBody)
                             return;
-                        var identity = route.model.identity;
-                        var wrapperKey = route.model._identity || identity;
+                        const identity = route.model.identity;
+                        const wrapperKey = route.model._identity || identity;
                         pathEntry.requestBody = {
-                            description: subst_1('JSON dictionary representing the {globalId} instance to create.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`.'),
+                            description: subst('JSON dictionary representing the {globalId} instance to create.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`.'),
                             required: true,
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'object',
                                         required: [wrapperKey],
-                                        properties: (_a = {},
-                                            _a[wrapperKey] = { '$ref': "#/components/schemas/".concat(identity) },
-                                            _a),
+                                        properties: {
+                                            [wrapperKey]: { '$ref': `#/components/schemas/${identity}` }
+                                        },
                                     },
                                 },
                             },
                         };
                     }
                 },
-                addModelBodyParamUpdate: function () {
-                    var _a;
-                    var _b;
+                addModelBodyParamUpdate: () => {
                     if (route.isShortcutBlueprintRoute) {
-                        var schema = (_b = specification.components.schemas) === null || _b === void 0 ? void 0 : _b[route.model.identity + '-without-required-constraint'];
+                        const schema = specification.components.schemas?.[route.model.identity + '-without-required-constraint'];
                         if (schema) {
-                            var resolvedSchema = (0, utils_1.resolveRef)(specification, schema);
+                            const resolvedSchema = (0, utils_1.resolveRef)(specification, schema);
                             if (resolvedSchema) {
-                                (0, exports.generateSchemaAsQueryParameters)(resolvedSchema).map(function (p) {
+                                (0, exports.generateSchemaAsQueryParameters)(resolvedSchema).map(p => {
                                     if (isParam('query', p.name))
                                         return;
                                     pathEntry.parameters.push(p);
@@ -748,41 +753,40 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                     else {
                         if (pathEntry.requestBody)
                             return;
-                        var identity = route.model.identity;
-                        var wrapperKey = route.model._identity || identity;
+                        const identity = route.model.identity;
+                        const wrapperKey = route.model._identity || identity;
                         pathEntry.requestBody = {
-                            description: subst_1('JSON dictionary representing the {globalId} fields to update.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`. All fields are optional — only included fields will be modified.'),
+                            description: subst('JSON dictionary representing the {globalId} fields to update.\n\n**Important:** The request body must be wrapped in a `' + wrapperKey + '` key — e.g. `{"' + wrapperKey + '": {…}}`. All fields are optional — only included fields will be modified.'),
                             required: true,
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'object',
                                         required: [wrapperKey],
-                                        properties: (_a = {},
-                                            _a[wrapperKey] = { '$ref': "#/components/schemas/".concat(identity) },
-                                            _a),
+                                        properties: {
+                                            [wrapperKey]: { '$ref': `#/components/schemas/${identity}` }
+                                        },
                                     },
                                 },
                             },
                         };
                     }
                 },
-                addResultOfArrayOfModels: function () {
-                    var _a;
-                    var pluralIdentity = route.model.identityPlural;
+                addResultOfArrayOfModels: () => {
+                    const pluralIdentity = route.model.identityPlural;
                     (0, defaults_1.default)(pathEntry.responses, {
                         '200': {
-                            description: subst_1(template_1.resultDescription || '**{globalId}** records with pagination metadata'),
+                            description: subst(template.resultDescription || '**{globalId}** records with pagination metadata'),
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'object',
-                                        properties: (_a = {},
-                                            _a[pluralIdentity] = {
+                                        properties: {
+                                            [pluralIdentity]: {
                                                 type: 'array',
                                                 items: { '$ref': '#/components/schemas/' + route.model.identity },
                                             },
-                                            _a.meta = {
+                                            meta: {
                                                 type: 'object',
                                                 properties: {
                                                     total: { type: 'integer', description: 'Total number of matching records' },
@@ -790,14 +794,14 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                                                     skip: { type: 'integer', description: 'Number of records skipped' },
                                                 },
                                             },
-                                            _a),
+                                        },
                                     },
                                 },
                             },
                         }
                     });
                 },
-                addAssociationPathParam: function () {
+                addAssociationPathParam: () => {
                     if (isParam('path', 'association'))
                         return;
                     pathEntry.parameters.splice(1, 0, {
@@ -811,7 +815,7 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         description: 'The name of the association',
                     });
                 },
-                addAssociationFKPathParam: function () {
+                addAssociationFKPathParam: () => {
                     if (isParam('path', 'childid'))
                         return; // pre-defined/pre-configured --> skip
                     pathEntry.parameters.push({
@@ -824,23 +828,22 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         description: 'The desired target association record\'s foreign key value'
                     });
                 },
-                addAssociationResultOfArray: function () {
-                    var _a;
-                    var associations = ((_a = route.model) === null || _a === void 0 ? void 0 : _a.associations) || [];
-                    var models = (route.associationAliases || []).map(function (a) {
-                        var assoc = associations.find(function (_assoc) { return _assoc.alias == a; });
+                addAssociationResultOfArray: () => {
+                    const associations = route.model?.associations || [];
+                    const models = (route.associationAliases || []).map(a => {
+                        const assoc = associations.find(_assoc => _assoc.alias == a);
                         return assoc ? (assoc.collection || assoc.model) : a;
                     });
                     (0, defaults_1.default)(pathEntry.responses, {
                         '200': {
-                            description: subst_1(template_1.resultDescription),
+                            description: subst(template.resultDescription),
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'array',
                                         // items: { type: 'any' },
                                         items: {
-                                            oneOf: (0, lodash_1.uniq)(models).map(function (model) {
+                                            oneOf: (0, lodash_1.uniq)(models).map(model => {
                                                 return { '$ref': '#/components/schemas/' + model };
                                             }),
                                         },
@@ -850,39 +853,38 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         }
                     });
                 },
-                addResultOfModel: function () {
-                    var _a;
-                    var identity = route.model.identity;
-                    var wrapperKey = route.model._identity || identity;
+                addResultOfModel: () => {
+                    const identity = route.model.identity;
+                    const wrapperKey = route.model._identity || identity;
                     (0, defaults_1.default)(pathEntry.responses, {
                         '200': {
-                            description: subst_1(template_1.resultDescription || '**{globalId}** record'),
+                            description: subst(template.resultDescription || '**{globalId}** record'),
                             content: {
                                 'application/json': {
                                     schema: {
                                         type: 'object',
-                                        properties: (_a = {},
-                                            _a[wrapperKey] = { '$ref': '#/components/schemas/' + identity },
-                                            _a),
+                                        properties: {
+                                            [wrapperKey]: { '$ref': '#/components/schemas/' + identity },
+                                        },
                                     },
                                 },
                             },
                         }
                     });
                 },
-                addResultNotFound: function () {
+                addResultNotFound: () => {
                     (0, defaults_1.default)(pathEntry.responses, {
-                        '404': { description: subst_1(template_1.notFoundDescription || 'Not found'), }
+                        '404': { description: subst(template.notFoundDescription || 'Not found'), }
                     });
                 },
-                addResultValidationError: function () {
+                addResultValidationError: () => {
                     (0, defaults_1.default)(pathEntry.responses, {
-                        '400': { description: subst_1('Validation errors; details in JSON response'), }
+                        '400': { description: subst('Validation errors; details in JSON response'), }
                     });
                 },
-                addFksBodyParam: function () {
+                addFksBodyParam: () => {
                     if (route.isShortcutBlueprintRoute) {
-                        (0, exports.generateModelAssociationFKAttributeParameters)(route.model, route.associationAliases, models).map(function (p) {
+                        (0, exports.generateModelAssociationFKAttributeParameters)(route.model, route.associationAliases, models).map(p => {
                             if (!route.associationAliases || route.associationAliases.indexOf(p.name) < 0)
                                 return;
                             if (isParam('query', p.name))
@@ -909,74 +911,74 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                         };
                     }
                 },
-                addCriteriaWhitelistParams: function () {
-                    var _a;
-                    var _b;
-                    var criteriaWhitelist = (_b = route.model) === null || _b === void 0 ? void 0 : _b.criteriaWhitelist;
+                addCriteriaWhitelistParams: () => {
+                    const criteriaWhitelist = route.model?.criteriaWhitelist;
                     if (!criteriaWhitelist)
                         return;
-                    var hookConfig = sails.config['swagger-generator'] || {};
-                    var blueprintConfig = sails.config.blueprints || {};
-                    var criteriaDescriptions = hookConfig.criteriaDescriptions || {};
+                    const hookConfig = sails.config['swagger-generator'] || {};
+                    const blueprintConfig = sails.config.blueprints || {};
+                    const criteriaDescriptions = hookConfig.criteriaDescriptions || {};
                     // autoCriteriaWhitelist (if attribute exists on model) + model's criteriaWhitelist
-                    var autoKeys = [];
-                    var autoCriteria = blueprintConfig.autoCriteriaWhitelist || [];
-                    autoCriteria.forEach(function (attr) {
-                        var _a;
-                        if ((_a = route.model.attributes) === null || _a === void 0 ? void 0 : _a[attr])
+                    const autoKeys = [];
+                    const autoCriteria = blueprintConfig.autoCriteriaWhitelist || [];
+                    autoCriteria.forEach(attr => {
+                        if (route.model.attributes?.[attr])
                             autoKeys.push(attr);
                     });
-                    var allCriteria = __spreadArray(__spreadArray([], criteriaWhitelist, true), autoKeys, true);
-                    var attributes = route.model.attributes || {};
+                    const allCriteria = [...new Set([...criteriaWhitelist, ...autoKeys])];
+                    const attributes = route.model.attributes || {};
                     // Build criteria params and prepend them before pagination/common params
-                    var criteriaParams = [];
-                    allCriteria.forEach(function (name) {
+                    const criteriaParams = [];
+                    allCriteria.forEach(name => {
                         if (isParam('query', name))
                             return;
-                        var attr = attributes[name];
-                        var schema = attr
+                        const attr = attributes[name];
+                        const schema = attr
                             ? (0, cloneDeep_1.default)((0, exports.generateAttributeSchema)(attr, name, resolveGlobalId))
                             : { type: 'string' };
                         // Append date format hint based on attribute type before stripping
-                        var formatHints = {
+                        const formatHints = {
                             'date-time': ' (`YYYY-MM-DD` or `YYYY-MM-DDTHH:mm:ss.sssZ`)',
                             'date': ' (`YYYY-MM-DD`)',
                         };
-                        var formatHint = schema.format && formatHints[schema.format] || '';
-                        var isDateField = schema.format === 'date' || schema.format === 'date-time';
-                        var dateNote = isDateField ? '. This is an **exact match** filter; for range queries (greater than, less than), use the `where` parameter instead' : '';
+                        const formatHint = schema.format && formatHints[schema.format] || '';
+                        const isDateField = schema.format === 'date' || schema.format === 'date-time';
+                        const dateNote = isDateField ? '. This is an **exact match** filter; for range queries (greater than, less than), use the `where` parameter instead' : '';
                         // Build description: prefer global criteriaDescriptions, then attribute description, then generic
-                        var baseDescription = criteriaDescriptions[name] || schema.description || "Filter by `".concat(name, "`");
-                        var description = baseDescription + formatHint + dateNote;
+                        const baseDescription = criteriaDescriptions[name] || schema.description || `Filter by \`${name}\``;
+                        const description = baseDescription + formatHint + dateNote;
                         // Clean up schema for use as a query parameter
                         delete schema.description;
                         delete schema.format;
                         // Strip nullability from query params (3.1 type arrays)
                         if (Array.isArray(schema.type)) {
-                            schema.type = schema.type.filter(function (t) { return t !== 'null'; });
+                            schema.type = schema.type.filter(t => t !== 'null');
                             if (schema.type.length === 1)
                                 schema.type = schema.type[0];
                         }
                         criteriaParams.push({
                             in: 'query',
-                            name: name,
+                            name,
                             required: false,
-                            schema: schema,
-                            description: description,
+                            schema,
+                            description,
                         });
                     });
                     // Prepend criteria params so they appear before pagination/common params
-                    (_a = pathEntry.parameters).unshift.apply(_a, criteriaParams);
+                    pathEntry.parameters.unshift(...criteriaParams);
                     // Inline the WhereQueryParam with model-specific criteria list
-                    var whereIdx = pathEntry.parameters.findIndex(function (p) {
-                        var resolved = resolveParameterRef(p);
+                    const whereIdx = pathEntry.parameters.findIndex(p => {
+                        const resolved = resolveParameterRef(p);
                         return resolved && 'in' in resolved && resolved.in === 'query' && resolved.name === 'where';
                     });
                     if (whereIdx >= 0) {
-                        var criteriaList = allCriteria.map(function (c) { return "`".concat(c, "`"); }).join(', ');
-                        var containsColumns = __spreadArray(__spreadArray([], (route.model.fulltextColumns || []), true), (route.model.likeColumns || []), true);
-                        var containsLine = containsColumns.length
-                            ? "The `contains` modifier is only supported on: ".concat(containsColumns.map(function (c) { return "`".concat(c, "`"); }).join(', '), ".")
+                        const criteriaList = allCriteria.map(c => `\`${c}\``).join(', ');
+                        const containsColumns = [
+                            ...(route.model.fulltextColumns || []),
+                            ...(route.model.likeColumns || []),
+                        ];
+                        const containsLine = containsColumns.length
+                            ? `The \`contains\` modifier is only supported on: ${containsColumns.map(c => `\`${c}\``).join(', ')}.`
                             : 'The `contains` modifier is not supported on this model.';
                         pathEntry.parameters[whereIdx] = {
                             in: 'query',
@@ -984,23 +986,23 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             required: false,
                             schema: { type: 'string' },
                             description: 'A JSON-encoded [Waterline criteria](https://sailsjs.com/documentation/concepts/models-and-orm/query-language)'
-                                + " for advanced filtering. Only whitelisted criteria are supported: ".concat(criteriaList, ".")
+                                + ` for advanced filtering. Only whitelisted criteria are supported: ${criteriaList}.`
                                 + ' Sub-attribute modifiers such as `startsWith`, `>=`, `<=`, `>`, `<`, and `!=` are supported on any whitelisted criterion.'
-                                + " ".concat(containsLine)
-                                + (function () {
-                                    var now = new Date();
-                                    var y = now.getFullYear();
-                                    var m = String(now.getMonth() + 1).padStart(2, '0');
-                                    var m2 = String(now.getMonth() + 2).padStart(2, '0');
-                                    return "\n\ne.g. `?where={\"startDate\":{\">=\":\"".concat(y, "-").concat(m, "-01\",\"<\":\"").concat(y, "-").concat(m2, "-01\"}}`");
+                                + ` ${containsLine}`
+                                + (() => {
+                                    const now = new Date();
+                                    const y = now.getFullYear();
+                                    const m = String(now.getMonth() + 1).padStart(2, '0');
+                                    const m2 = String(now.getMonth() + 2).padStart(2, '0');
+                                    return `\n\ne.g. \`?where={"startDate":{">=":"${y}-${m}-01","<":"${y}-${m2}-01"}}\``;
                                 })(),
                         };
                     }
                     // Inline the LimitQueryParam with model-specific defaults
-                    var defaultLimit = route.model.standardLimit || blueprintConfig.standardLimit || 30;
-                    var maxLimit = route.model.maximumLimit || blueprintConfig.maximumLimit || defaultLimit;
-                    var limitIdx = pathEntry.parameters.findIndex(function (p) {
-                        var resolved = resolveParameterRef(p);
+                    const defaultLimit = route.model.standardLimit || blueprintConfig.standardLimit || 30;
+                    const maxLimit = route.model.maximumLimit || blueprintConfig.maximumLimit || defaultLimit;
+                    const limitIdx = pathEntry.parameters.findIndex(p => {
+                        const resolved = resolveParameterRef(p);
                         return resolved && 'in' in resolved && resolved.in === 'query' && resolved.name === 'limit';
                     });
                     if (limitIdx >= 0) {
@@ -1009,35 +1011,35 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                             name: 'limit',
                             required: false,
                             schema: { type: 'integer', default: defaultLimit, maximum: maxLimit },
-                            description: "The maximum number of records to return. Defaults to ".concat(defaultLimit, ", capped at ").concat(maxLimit, "."),
+                            description: `The maximum number of records to return. Defaults to ${defaultLimit}, capped at ${maxLimit}.`,
                         };
                     }
                 },
-                addShortCutBlueprintRouteNote: function () {
+                addShortCutBlueprintRouteNote: () => {
                     if (!route.isShortcutBlueprintRoute) {
                         return;
                     }
                     pathEntry.summary += ' *';
                     if (route.blueprintAction === 'replace') {
-                        pathEntry.description += "\n\nOnly one of the query parameters, that matches the **association** path parameter, should be specified.";
+                        pathEntry.description += `\n\nOnly one of the query parameters, that matches the **association** path parameter, should be specified.`;
                     }
-                    pathEntry.description += "\n\n(\\*) Note that this is a"
-                        + " [Sails blueprint shortcut route](https://sailsjs.com/documentation/concepts/blueprints/blueprint-routes#?shortcut-blueprint-routes)"
-                        + " (recommended for **development-mode only**)";
+                    pathEntry.description += `\n\n(\\*) Note that this is a`
+                        + ` [Sails blueprint shortcut route](https://sailsjs.com/documentation/concepts/blueprints/blueprint-routes#?shortcut-blueprint-routes)`
+                        + ` (recommended for **development-mode only**)`;
                 },
             };
             // apply changes for blueprint action
-            (template_1.modifiers || []).map(function (modifier) {
+            (template.modifiers || []).map(modifier => {
                 if ((0, isFunction_1.default)(modifier))
-                    modifier(template_1, route, pathEntry, tags, components); // custom modifier
+                    modifier(template, route, pathEntry, tags, components); // custom modifier
                 else
-                    modifiers_1[modifier](); // standard modifier
+                    modifiers[modifier](); // standard modifier
             });
         } // of if (route.model && route.blueprintAction)
         // final populate noting others above
         (0, defaults_1.default)(pathEntry, {
             summary: route.path || '',
-            tags: [((_0 = route.actions2Machine) === null || _0 === void 0 ? void 0 : _0.friendlyName) || route.defaultTagName],
+            tags: [route.actions2Machine?.friendlyName || route.defaultTagName],
         });
         (0, defaults_1.default)(pathEntry.responses, defaultsValues.responses, { '500': { description: 'Internal server error' } });
         // catch the case where defaultTagName not defined
@@ -1045,8 +1047,8 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
             pathEntry.tags = [];
         if (route.variables) {
             // now add patternVariables that don't already exist
-            route.variables.map(function (v) {
-                var existing = isParam('path', v);
+            route.variables.map(v => {
+                const existing = isParam('path', v);
                 if (existing)
                     return;
                 pathEntry.parameters.push({
@@ -1054,30 +1056,52 @@ var generatePaths = function (routes, templates, defaultsValues, specification, 
                     name: v,
                     required: true,
                     schema: { type: 'string' },
-                    description: "Route pattern variable `".concat(v, "`"),
+                    description: `Route pattern variable \`${v}\``,
                 });
+            });
+            // Drop path parameters that don't appear in this route's URL template.
+            // Path parameters declared on the controller may belong to a sibling
+            // route bound to the same action — they're invalid OpenAPI on this URL.
+            pathEntry.parameters = pathEntry.parameters.filter(p => {
+                const resolved = resolveParameterRef(p);
+                if (!resolved || !('in' in resolved) || resolved.in !== 'path')
+                    return true;
+                return route.variables.indexOf(resolved.name) >= 0;
             });
         }
         if (pathEntry.tags) {
             pathEntry.tags.sort();
+        }
+        // Synthesize operationId if not set. Blueprints use <identity>_<action>;
+        // custom routes use <verb>_<normalized-path> to disambiguate sibling bindings.
+        if (!pathEntry.operationId) {
+            if (route.model && route.blueprintAction) {
+                pathEntry.operationId = `${route.model.identity}_${route.blueprintAction}`;
+            }
+            else {
+                const cleanPath = route.path
+                    .replace(/^\//, '')
+                    .replace(/\{([^}]+)\}/g, 'by_$1')
+                    .replace(/[/_-]+/g, '_');
+                pathEntry.operationId = `${route.verb}_${cleanPath}`;
+            }
         }
         (0, set_1.default)(paths, [route.path, route.verb], pathEntry);
     });
     return paths;
 };
 exports.generatePaths = generatePaths;
-var generateDefaultModelTags = function (models) {
-    return (0, lodash_1.map)(models, function (model) {
-        var _a, _b, _c, _d;
-        if (((_b = (_a = model.swagger) === null || _a === void 0 ? void 0 : _a.modelSchema) === null || _b === void 0 ? void 0 : _b.exclude) === true)
+const generateDefaultModelTags = (models) => {
+    return (0, lodash_1.map)(models, model => {
+        if (model.swagger?.modelSchema?.exclude === true)
             return null;
-        var defaultDescription = "CRUD actions for **".concat(model.globalId, "**");
-        var tagDef = {
+        const defaultDescription = `CRUD actions for **${model.globalId}**`;
+        const tagDef = {
             name: model.globalId,
-            description: ((_c = model.swagger.modelSchema) === null || _c === void 0 ? void 0 : _c.description) || defaultDescription,
+            description: model.swagger.modelSchema?.description || defaultDescription,
         };
-        if ((_d = model.swagger.modelSchema) === null || _d === void 0 ? void 0 : _d.externalDocs) {
-            tagDef.externalDocs = __assign({}, model.swagger.modelSchema.externalDocs);
+        if (model.swagger.modelSchema?.externalDocs) {
+            tagDef.externalDocs = { ...model.swagger.modelSchema.externalDocs };
         }
         return tagDef;
     }).filter(Boolean);

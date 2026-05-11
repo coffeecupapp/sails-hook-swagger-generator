@@ -175,12 +175,10 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition, at
   }
 
   // OpenAPI 3.1: convert nullable to type array
-  if (schema.nullable) {
-    if (schema.type) {
-      schema.type = [schema.type as OpenApi.DataType, 'null'];
-    }
-    delete schema.nullable;
+  if (schema.nullable === true && schema.type) {
+    schema.type = [schema.type as OpenApi.DataType, 'null'];
   }
+  delete schema.nullable;
 
   return schema;
 }
@@ -998,7 +996,7 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           autoCriteria.forEach(attr => {
             if (route.model!.attributes?.[attr]) autoKeys.push(attr);
           });
-          const allCriteria = [...criteriaWhitelist, ...autoKeys];
+          const allCriteria = [...new Set([...criteriaWhitelist, ...autoKeys])];
           const attributes = route.model!.attributes || {};
 
           // Build criteria params and prepend them before pagination/common params
@@ -1148,10 +1146,33 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           description: `Route pattern variable \`${v}\``,
         });
       });
+
+      // Drop path parameters that don't appear in this route's URL template.
+      // Path parameters declared on the controller may belong to a sibling
+      // route bound to the same action — they're invalid OpenAPI on this URL.
+      pathEntry.parameters = pathEntry.parameters.filter(p => {
+        const resolved = resolveParameterRef(p);
+        if (!resolved || !('in' in resolved) || resolved.in !== 'path') return true;
+        return route.variables!.indexOf(resolved.name) >= 0;
+      });
     }
 
     if(pathEntry.tags) {
       pathEntry.tags.sort();
+    }
+
+    // Synthesize operationId if not set. Blueprints use <identity>_<action>;
+    // custom routes use <verb>_<normalized-path> to disambiguate sibling bindings.
+    if (!pathEntry.operationId) {
+      if (route.model && route.blueprintAction) {
+        pathEntry.operationId = `${route.model.identity}_${route.blueprintAction}`;
+      } else {
+        const cleanPath = route.path
+          .replace(/^\//, '')
+          .replace(/\{([^}]+)\}/g, 'by_$1')
+          .replace(/[/_-]+/g, '_');
+        pathEntry.operationId = `${route.verb}_${cleanPath}`;
+      }
     }
 
     set(paths, [route.path, route.verb], pathEntry);

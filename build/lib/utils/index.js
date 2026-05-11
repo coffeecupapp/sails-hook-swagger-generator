@@ -1,23 +1,12 @@
 "use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deriveSwaggerTypeFromExample = exports.unrollSchema = exports.resolveRef = exports.getUniqueTagsFromPath = exports.loadSwaggerDocComments = exports.attributeValidations = exports.blueprintActions = void 0;
-var swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
-var lodash_1 = require("lodash");
-var type_formatter_1 = require("../type-formatter");
+const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
+const lodash_1 = require("lodash");
+const type_formatter_1 = require("../type-formatter");
 exports.blueprintActions = ['findone', 'find', 'create', 'update', 'destroy', 'populate', 'add', 'remove', 'replace'];
 exports.attributeValidations = [
     'isAfter',
@@ -42,17 +31,17 @@ exports.attributeValidations = [
     'regex',
     'custom',
 ];
-var loadSwaggerDocComments = function (filePath) {
-    return new Promise(function (resolve, reject) {
+const loadSwaggerDocComments = (filePath) => {
+    return new Promise((resolve, reject) => {
         try {
-            var opts = {
+            const opts = {
                 definition: {
                     openapi: '3.1.0',
                     info: { title: 'dummy', version: '0.0.0' },
                 },
                 apis: [filePath],
             };
-            var specification = (0, swagger_jsdoc_1.default)(opts);
+            const specification = (0, swagger_jsdoc_1.default)(opts);
             resolve(specification);
         }
         catch (err) {
@@ -61,24 +50,24 @@ var loadSwaggerDocComments = function (filePath) {
     });
 };
 exports.loadSwaggerDocComments = loadSwaggerDocComments;
-var getUniqueTagsFromPath = function (paths) {
-    var referencedTags = new Set();
-    for (var path in paths) {
-        var pathDefinition = paths[path];
-        for (var verb in pathDefinition) {
-            var verbDefinition = pathDefinition[verb];
+const getUniqueTagsFromPath = (paths) => {
+    const referencedTags = new Set();
+    for (const path in paths) {
+        const pathDefinition = paths[path];
+        for (const verb in pathDefinition) {
+            const verbDefinition = pathDefinition[verb];
             if (verbDefinition.tags) {
-                verbDefinition.tags.forEach(function (tag) { return referencedTags.add(tag); });
+                verbDefinition.tags.forEach(tag => referencedTags.add(tag));
             }
         }
     }
     return referencedTags;
 };
 exports.getUniqueTagsFromPath = getUniqueTagsFromPath;
-var resolveRef = function (specification, obj) {
-    var path = obj.$ref;
+const resolveRef = (specification, obj) => {
+    const path = obj.$ref;
     if (typeof (path) === 'string' && path.startsWith('#/')) {
-        var pathElements = path.substring(2).split('/');
+        const pathElements = path.substring(2).split('/');
         return (0, lodash_1.get)(specification, pathElements);
     }
     return obj;
@@ -101,12 +90,12 @@ exports.resolveRef = resolveRef;
  * @param specification
  * @param schema
  */
-var unrollSchema = function (specification, schema) {
-    var ret = (0, lodash_1.cloneDeep)((0, exports.resolveRef)(specification, schema));
+const unrollSchema = (specification, schema) => {
+    const ret = (0, lodash_1.cloneDeep)((0, exports.resolveRef)(specification, schema));
     if (ret.allOf) {
-        var allOf = ret.allOf;
+        const allOf = ret.allOf;
         delete ret.allOf;
-        allOf.map(function (s) { return (0, lodash_1.defaultsDeep)(ret, (0, exports.resolveRef)(specification, s)); });
+        allOf.map(s => (0, lodash_1.defaultsDeep)(ret, (0, exports.resolveRef)(specification, s)));
     }
     return ret;
 };
@@ -123,11 +112,10 @@ exports.unrollSchema = unrollSchema;
  *
  * @param {any} example
  */
-var deriveSwaggerTypeFromExample = function (example, recurseToDepth) {
-    if (recurseToDepth === void 0) { recurseToDepth = 4; }
-    var deriveSimpleSwaggerType = function (v) {
+const deriveSwaggerTypeFromExample = (example, recurseToDepth = 4) => {
+    const deriveSimpleSwaggerType = (v) => {
         // undefined,boolean,number,bigint,string,symbol,function,object
-        var t = typeof (v);
+        const t = typeof (v);
         if (t === 'string' || t === 'symbol') {
             return type_formatter_1.swaggerTypes.string;
         }
@@ -148,44 +136,47 @@ var deriveSwaggerTypeFromExample = function (example, recurseToDepth) {
         }
     };
     if (Array.isArray(example)) {
-        var types_1 = [];
-        example.map(function (v) {
-            var t = recurseToDepth > 1 ? (0, exports.deriveSwaggerTypeFromExample)(v, recurseToDepth - 1) : deriveSimpleSwaggerType(v);
-            var existing = types_1.find(function (_t) { return (0, lodash_1.isEqual)(_t, t); });
+        const types = [];
+        example.map(v => {
+            const t = recurseToDepth > 1 ? (0, exports.deriveSwaggerTypeFromExample)(v, recurseToDepth - 1) : deriveSimpleSwaggerType(v);
+            const existing = types.find(_t => (0, lodash_1.isEqual)(_t, t));
             if (!existing)
-                types_1.push(t);
+                types.push(t);
         });
-        if (types_1.length < 1) {
-            types_1.push(type_formatter_1.swaggerTypes.any);
+        if (types.length < 1) {
+            types.push(type_formatter_1.swaggerTypes.any);
         }
-        if (types_1.length === 1) {
+        if (types.length === 1) {
             return {
                 type: 'array',
-                items: Array.from(types_1)[0],
+                items: Array.from(types)[0],
             };
         }
         else {
             return {
                 type: 'array',
                 items: {
-                    anyOf: Array.from(types_1),
+                    anyOf: Array.from(types),
                 },
             };
         }
     }
     else {
-        var t = typeof (example);
+        const t = typeof (example);
         if (t === 'object' || t === 'function') {
             if (recurseToDepth <= 1) {
                 return deriveSimpleSwaggerType(example);
             }
-            var properties_1 = {};
-            (0, lodash_1.map)(example, function (v, k) {
-                properties_1[k] = __assign({ example: v }, (0, exports.deriveSwaggerTypeFromExample)(v, recurseToDepth - 1));
+            const properties = {};
+            (0, lodash_1.map)(example, (v, k) => {
+                properties[k] = {
+                    example: v,
+                    ...(0, exports.deriveSwaggerTypeFromExample)(v, recurseToDepth - 1),
+                };
             });
             return {
                 type: 'object',
-                properties: properties_1,
+                properties: properties,
             };
         }
         else {

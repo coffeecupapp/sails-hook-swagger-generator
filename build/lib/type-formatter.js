@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.defaults = exports.actions2Responses = exports.blueprintParameterTemplates = exports.blueprintActionTemplates = exports.validationsMap = exports.sailsAttributePropertiesMap = exports.swaggerTypes = void 0;
-var interfaces_1 = require("./interfaces");
+const interfaces_1 = require("./interfaces");
 /**
  * this is used to map our sails types with the allowed type defintions based on swagger specification
  */

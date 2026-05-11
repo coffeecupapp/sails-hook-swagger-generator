@@ -100,18 +100,18 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
   /*
    * Expand generic /:modelIdentity/history route into concrete per-model paths.
    * Models opt in via `supportsHistory: true`; the generic path is removed.
+   * The per-model operation schema is supplied by `hookConfig.buildHistoryOperation`;
+   * if absent, the generic path is removed but no concrete paths are emitted.
    */
   {
     const historyPathKey = Object.keys(specifications.paths!).find(
       p => p.includes('{modelIdentity}') && p.endsWith('/history')
     );
     if (historyPathKey) {
-      const historyOp = (specifications.paths![historyPathKey] as Record<string, any>)?.get;
-      if (historyOp) {
-        const historyModels = Object.values(models).filter(m => m.supportsHistory);
+      const historyModels = Object.values(models).filter(m => m.supportsHistory);
+      const shouldPluralize = sails.config.blueprints && sails.config.blueprints.pluralize;
 
-        const shouldPluralize = sails.config.blueprints && sails.config.blueprints.pluralize;
-
+      if (hookConfig.buildHistoryOperation) {
         for (const model of historyModels) {
           // Match the blueprint hook's kebab-case + pluralize convention
           let pathSegment = model.globalId
@@ -120,90 +120,12 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
             pathSegment = pluralize(pathSegment);
           }
           const concretePath = historyPathKey.replace('{modelIdentity}', pathSegment);
-
-          // Build oldState/newState schema from model attributes
-          const stateProperties: Record<string, OpenApi.UpdatedSchema> = {};
-          const stripFields = model.logStripFields || [];
-
-          for (const [name, attr] of Object.entries(model.attributes)) {
-            if ((attr as any).collection) continue;
-            if (name.startsWith('_')) continue;
-            if (stripFields.includes(name)) continue;
-            if (model.hiddenAttributes.includes(name)) continue;
-
-            if ((attr as any).model) {
-              stateProperties[name] = { type: 'integer' };
-            } else {
-              stateProperties[name] = generateAttributeSchema(attr, name);
-            }
-          }
-
-          const stateSchema: OpenApi.UpdatedSchema = {
-            type: 'object',
-            description: 'Only the fields that changed are included. Fields may be further omitted based on the requesting user\'s permissions.',
-            properties: stateProperties,
-          };
-
-          const op: OpenApi.Operation = {
-            tags: [model.globalId],
-            summary: `Get ${model.globalId} history log`,
-            description: `Returns the history log for a **${model.globalId}** record. Each entry contains \`oldState\` and \`newState\` objects with only the fields that changed between revisions. Fields may be further omitted based on the requesting user's permissions.`,
-            parameters: [
-              {
-                in: 'query',
-                name: 'id',
-                required: true,
-                schema: { type: 'integer' },
-                description: `The ID of the ${model.globalId} record to retrieve history for`,
-              },
-            ],
-            responses: {
-              '200': {
-                description: 'Successful operation',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        recordLog: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              id: { type: 'integer', description: 'History log entry ID' },
-                              actionId: { type: 'integer', description: 'ID of the record that was changed' },
-                              actionDate: { type: 'string', format: 'date-time', description: 'When the change occurred' },
-                              actionUser: { type: 'integer', description: 'ID of the user who made the change' },
-                              actionType: { type: 'string', enum: ['NEW', 'EDIT', 'DELETE'] as any, description: 'Type of change' },
-                              oldState: stateSchema,
-                              newState: stateSchema,
-                              additionalInfo: {
-                                type: 'object',
-                                nullable: true,
-                                description: 'Present when a comment was attached to the change. The comment author is identified by `actionUser`.',
-                                properties: {
-                                  comment: { type: 'string', description: 'The comment text' },
-                                },
-                              } as OpenApi.UpdatedSchema,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-              '400': { description: 'No id specified' },
-              '403': { description: 'User does not have permission to access this record' },
-              '500': { description: 'Internal server error' },
-            },
-          };
-
+          const op = hookConfig.buildHistoryOperation(model, { generateAttributeSchema });
           specifications.paths![concretePath] = { get: op } as OpenApi.Path;
         }
-
-        delete specifications.paths![historyPathKey];
       }
+
+      delete specifications.paths![historyPathKey];
     }
   }
 

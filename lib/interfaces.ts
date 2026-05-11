@@ -12,6 +12,23 @@ export interface SwaggerGenerator {
   postProcess?: (specification: OpenApi.OpenApi) => void;
   excludeDeprecatedPutBlueprintRoutes?: boolean;
   criteriaDescriptions?: Record<string, string>;
+  /**
+   * Build the OpenAPI operation for `/<modelIdentity>/history` for a single model.
+   * Called for each model with `supportsHistory: true`. If absent, history paths
+   * are left as-is (the `{modelIdentity}` template path is removed but no concrete
+   * per-model paths are emitted).
+   */
+  buildHistoryOperation?: (
+    model: SwaggerSailsModel,
+    helpers: HistoryOperationHelpers,
+  ) => OpenApi.Operation;
+}
+
+export interface HistoryOperationHelpers {
+  generateAttributeSchema: (
+    attribute: SwaggerSailsModelAttributeDefinition,
+    attributeName?: string,
+  ) => OpenApi.UpdatedSchema;
 }
 
 /**
