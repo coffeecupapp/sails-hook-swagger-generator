@@ -168,21 +168,25 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
     }
   });
 
-  // Update tag descriptions based on classification (after all tags are finalized)
+  // Update tag descriptions based on classification (after all tags are finalized).
+  // The classification header is always emitted for consistency across resources;
+  // if the corresponding model has a `swagger.modelSchema.description`, it is
+  // appended below the header as the resource-specific blurb.
   specifications.tags!.forEach(tagDef => {
-    // Skip tags with custom descriptions from model swagger config
-    const model = Object.values(models).find(m => m.globalId === tagDef.name);
-    if (model?.swagger?.modelSchema?.description) return;
-
     const hasCrud = tagHasBlueprint[tagDef.name];
     const hasCustom = tagHasCustom[tagDef.name];
+    let header: string;
     if (hasCrud && hasCustom) {
-      tagDef.description = `Resource: **${tagDef.name}** — CRUD and model-specific endpoints`;
+      header = `Resource: **${tagDef.name}** — CRUD and model-specific endpoints`;
     } else if (hasCrud) {
-      tagDef.description = `Resource: **${tagDef.name}** — CRUD endpoints`;
+      header = `Resource: **${tagDef.name}** — CRUD endpoints`;
     } else {
-      tagDef.description = `**${tagDef.name}** — domain-specific endpoints`;
+      header = `**${tagDef.name}** — domain-specific endpoints`;
     }
+
+    const model = Object.values(models).find(m => m.globalId === tagDef.name);
+    const modelDescription = model?.swagger?.modelSchema?.description;
+    tagDef.description = modelDescription ? `${header}\n\n${modelDescription}` : header;
   });
 
   /*
