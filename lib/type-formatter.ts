@@ -91,7 +91,7 @@ export const blueprintActionTemplates: BlueprintActionTemplates = {
   },
   find: {
     summary: 'List {globalId} (find where)',
-    description: 'Find a list of **{globalId}** records that match the specified criteria.\n\n**Tip:** All query parameters accept multiple values for array filtering — e.g. `?id=1&id=2` or `?id[]=1&id[]=2`. This also works within the `where` parameter: `?where={"id":[1,2,3]}`.',
+    description: 'Find a list of **{globalId}** records that match the specified criteria.\n\n**Tip:** All query parameters accept multiple values for array filtering — e.g. `?id=1&id=2` or `?id[]=1&id[]=2`. This also works within the `where` parameter: `?where={"id":[1,2,3]}`.\n\n**Note:** The per-attribute filter parameters and the `where` parameter are mutually exclusive. If `where` is supplied, the per-attribute filters are ignored — put all filter criteria inside `where` instead. `limit`, `skip`, `sort`, and `populate` are unaffected.',
     externalDocs: {
       url: 'https://sailsjs.com/documentation/reference/blueprint-api/find-where',
       description: 'See https://sailsjs.com/documentation/reference/blueprint-api/find-where'
@@ -229,6 +229,7 @@ export const blueprintParameterTemplates: Record<string, OpenApi.Parameter | Ref
       + ' for advanced filtering.'
       + ' This allows you to take advantage of `contains`, `startsWith`, and'
       + ' other sub-attribute criteria modifiers for more powerful `find()` queries.'
+      + '\n\n**Note:** If `where` is supplied, the per-attribute filter query parameters are ignored — `where` is the entire criteria. (`limit`, `skip`, `sort`, and `populate` are unaffected.) To combine filters, put them all inside `where`.'
       + '\n\ne.g. `?where={"status":1}`'
   },
   LimitQueryParam: {

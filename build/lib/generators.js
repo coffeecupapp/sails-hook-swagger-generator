@@ -989,6 +989,7 @@ const generatePaths = (routes, templates, defaultsValues, specification, models,
                                 + ` for advanced filtering. Only whitelisted criteria are supported: ${criteriaList}.`
                                 + ' Sub-attribute modifiers such as `startsWith`, `>=`, `<=`, `>`, `<`, and `!=` are supported on any whitelisted criterion.'
                                 + ` ${containsLine}`
+                                + '\n\n**Note:** If `where` is supplied, the per-attribute filter query parameters above are ignored — `where` is the entire criteria. (`limit`, `skip`, `sort`, and `populate` are unaffected.) To combine filters, put them all inside `where`.'
                                 + (() => {
                                     const now = new Date();
                                     const y = now.getFullYear();
