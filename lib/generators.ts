@@ -137,6 +137,9 @@ export const generateAttributeSchema = (attribute: Sails.AttributeDefinition, at
       }
       return { const: value, title };
     });
+    if (schema.nullable === true) {
+      schema.oneOf.push({ const: null, title: 'None' });
+    }
     delete schema.enum;
     delete schema.type;
     delete schema.format;
@@ -326,7 +329,7 @@ export const generateSchemas = (models: NameKeyMap<SwaggerSailsModel>): NameKeyM
         type: 'object',
         description: model.swagger.modelSchema?.description || `Aerion model **${model.globalId}**`,
         properties: {},
-        ...omit(model.swagger?.modelSchema || {}, 'exclude', 'description', 'required', 'tags'),
+        ...omit(model.swagger?.modelSchema || {}, 'exclude', 'description', 'required', 'tags', 'excludeAttributes'),
       }
 
       let required: string[] = [];
@@ -996,8 +999,9 @@ export const generatePaths = (routes: SwaggerRouteInfo[], templates: BlueprintAc
           autoCriteria.forEach(attr => {
             if (route.model!.attributes?.[attr]) autoKeys.push(attr);
           });
-          const allCriteria = [...new Set([...criteriaWhitelist, ...autoKeys])];
           const attributes = route.model!.attributes || {};
+          const allCriteria = [...new Set([...criteriaWhitelist, ...autoKeys])]
+            .filter(name => attributes[name]?.meta?.swagger?.exclude !== true);
 
           // Build criteria params and prepend them before pagination/common params
           const criteriaParams: OpenApi.Parameter[] = [];

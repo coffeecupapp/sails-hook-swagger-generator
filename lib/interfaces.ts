@@ -4,6 +4,7 @@ import { Reference, Tag, ExternalDocs } from 'swagger-schema-official';
 
 export interface SwaggerGenerator {
   includeRoute?: (route: SwaggerRouteInfo) => boolean;
+  beforeGenerate?: (models: NameKeyMap<SwaggerSailsModel>, routes: SwaggerRouteInfo[]) => void;
   disabled?: boolean;
   swaggerJsonPath: string;
   swagger: Omit<OpenApi.OpenApi, 'paths'>;

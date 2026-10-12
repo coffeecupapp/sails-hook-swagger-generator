@@ -73,6 +73,10 @@ export default async (sails: Sails.Sails, sailsRoutes: Array<Sails.Route>, conte
 
   mergeControllerSwaggerIntoRouteInfo(sails, routes, controllers, controllersJsDoc);
 
+  if (hookConfig.beforeGenerate) {
+    hookConfig.beforeGenerate(models, routes);
+  }
+
   /*
    * generation phase
    */

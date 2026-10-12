@@ -163,6 +163,9 @@ const generateAttributeSchema = (attribute, attributeName, resolveGlobalId, json
             }
             return { const: value, title };
         });
+        if (schema.nullable === true) {
+            schema.oneOf.push({ const: null, title: 'None' });
+        }
         delete schema.enum;
         delete schema.type;
         delete schema.format;
@@ -324,7 +327,7 @@ const generateSchemas = (models) => {
             type: 'object',
             description: model.swagger.modelSchema?.description || `Aerion model **${model.globalId}**`,
             properties: {},
-            ...(0, lodash_1.omit)(model.swagger?.modelSchema || {}, 'exclude', 'description', 'required', 'tags'),
+            ...(0, lodash_1.omit)(model.swagger?.modelSchema || {}, 'exclude', 'description', 'required', 'tags', 'excludeAttributes'),
         };
         let required = [];
         const attributes = model.attributes || {};
@@ -925,8 +928,9 @@ const generatePaths = (routes, templates, defaultsValues, specification, models,
                         if (route.model.attributes?.[attr])
                             autoKeys.push(attr);
                     });
-                    const allCriteria = [...new Set([...criteriaWhitelist, ...autoKeys])];
                     const attributes = route.model.attributes || {};
+                    const allCriteria = [...new Set([...criteriaWhitelist, ...autoKeys])]
+                        .filter(name => attributes[name]?.meta?.swagger?.exclude !== true);
                     // Build criteria params and prepend them before pagination/common params
                     const criteriaParams = [];
                     allCriteria.forEach(name => {

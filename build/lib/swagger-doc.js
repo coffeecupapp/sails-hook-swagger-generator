@@ -75,6 +75,9 @@ exports.default = async (sails, sailsRoutes, context) => {
     (0, transformations_1.mergeModelJsDoc)(models, modelsJsDoc);
     (0, transformations_1.mergeControllerJsDoc)(controllers, controllersJsDoc);
     (0, transformations_1.mergeControllerSwaggerIntoRouteInfo)(sails, routes, controllers, controllersJsDoc);
+    if (hookConfig.beforeGenerate) {
+        hookConfig.beforeGenerate(models, routes);
+    }
     /*
      * generation phase
      */

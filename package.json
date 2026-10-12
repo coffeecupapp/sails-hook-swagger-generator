@@ -66,5 +66,6 @@
     "swagger-parser": {
       "@apidevtools/swagger-parser": "10.1.0"
     }
-  }
+  },
+  "types": "build/index.d.ts"
 }

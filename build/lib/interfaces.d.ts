@@ -1,0 +1,222 @@
+import { OpenApi } from '../types/openapi';
+import { Reference, Tag, ExternalDocs } from 'swagger-schema-official';
+export interface SwaggerGenerator {
+    includeRoute?: (route: SwaggerRouteInfo) => boolean;
+    beforeGenerate?: (models: NameKeyMap<SwaggerSailsModel>, routes: SwaggerRouteInfo[]) => void;
+    disabled?: boolean;
+    swaggerJsonPath: string;
+    swagger: Omit<OpenApi.OpenApi, 'paths'>;
+    updateBlueprintActionTemplates?: (template: BlueprintActionTemplates) => BlueprintActionTemplates;
+    defaults?: Defaults;
+    postProcess?: (specification: OpenApi.OpenApi) => void;
+    excludeDeprecatedPutBlueprintRoutes?: boolean;
+    criteriaDescriptions?: Record<string, string>;
+    /**
+     * Build the OpenAPI operation for `/<modelIdentity>/history` for a single model.
+     * Called for each model with `supportsHistory: true`. If absent, history paths
+     * are left as-is (the `{modelIdentity}` template path is removed but no concrete
+     * per-model paths are emitted).
+     */
+    buildHistoryOperation?: (model: SwaggerSailsModel, helpers: HistoryOperationHelpers) => OpenApi.Operation;
+}
+export interface HistoryOperationHelpers {
+    generateAttributeSchema: (attribute: SwaggerSailsModelAttributeDefinition, attributeName?: string) => OpenApi.UpdatedSchema;
+}
+/**
+ * Sails action types.
+ *
+ * @see https://sailsjs.com/documentation/concepts/routes/custom-routes
+ */
+export type ActionType = 'controller' | 'standalone' | 'actions2' | 'function';
+/**
+ * Sails blueprint action types.
+ *
+ * @see https://sailsjs.com/documentation/concepts/blueprints/blueprint-actions
+ */
+export type BluePrintAction = 'findone' | 'find' | 'create' | 'update' | 'destroy' | 'populate' | 'add' | 'remove' | 'replace';
+export declare enum Modifiers {
+    ADD_POPULATE_QUERY_PARAM = "addPopulateQueryParam",
+    ADD_SELECT_QUERY_PARAM = "addSelectQueryParam",
+    ADD_OMIT_QUERY_PARAM = "addOmitQueryParam",
+    ADD_MODEL_BODY_PARAM = "addModelBodyParam",
+    ADD_MODEL_BODY_PARAM_UPDATE = "addModelBodyParamUpdate",
+    ADD_RESULT_OF_ARRAY_OF_MODELS = "addResultOfArrayOfModels",
+    ADD_ASSOCIATION_PATH_PARAM = "addAssociationPathParam",
+    ADD_ASSOCIATION_FK_PATH_PARAM = "addAssociationFKPathParam",
+    ADD_ASSOCIATION_RESULT_OF_ARRAY = "addAssociationResultOfArray",
+    ADD_RESULT_OF_MODEL = "addResultOfModel",
+    ADD_RESULT_NOT_FOUND = "addResultNotFound",
+    ADD_RESULT_VALIDATION_ERROR = "addResultValidationError",
+    ADD_FKS_BODY_PARAM = "addFksBodyParam",
+    ADD_SHORTCUT_BLUEPRINT_ROUTE_NOTE = "addShortCutBlueprintRouteNote",
+    ADD_CRITERIA_WHITELIST_PARAMS = "addCriteriaWhitelistParams"
+}
+type Modifier = Modifiers | ((template: BluePrintActionTemplate, route: SwaggerRouteInfo, path: OpenApi.Operation, tags: Tag[], components: OpenApi.Components) => void);
+export interface Defaults {
+    responses: {
+        [statusCode: string]: {
+            description: string;
+        };
+    };
+}
+/**
+ * JSON used to desribe/document individual Swagger/OpenAPI Operation, with
+ * additional annotation to enable excluding the Sails action from the generated Swagger.
+ */
+export interface SwaggerActionAttribute extends Omit<OpenApi.Operation, 'parameters' | 'responses'> {
+    parameters?: Array<OpenApi.Parameter>;
+    responses?: Record<string, OpenApi.Response>;
+    exclude?: boolean;
+    /**
+     * Text appended to the operation's description, separated by a blank line.
+     * If `description` is also set, the appendix follows that. If not, it follows
+     * the blueprint template's default description. Useful for adding model-specific
+     * notes (e.g. uniqueness constraints) without restating the boilerplate.
+     */
+    descriptionAppendix?: string;
+}
+/**
+ * JSON used describe/document Sails Model files, describing the model's **schema**
+ * and a list of Swagger/OpenAPI `tags` to be applied to **all** blueprint actions for
+ * the model.
+ */
+export interface SwaggerModelSchemaAttribute extends OpenApi.UpdatedSchema {
+    tags?: string[];
+    exclude?: boolean;
+    excludeAttributes?: string[];
+}
+/**
+ * JSON used to describe/document Sails Controller file, describing global `tags` and
+ * `components` to be added, 'controller' documentation to be applied to **all**
+ * actions in the file and per-action documentation.
+ */
+export interface SwaggerControllerAttribute {
+    exclude?: boolean;
+    tags?: Array<Tag>;
+    components?: OpenApi.Components;
+    actions?: NameKeyMap<SwaggerActionAttribute>;
+}
+/**
+ * JSON used to desribe/document Sails Model definition file, describing global `tags` and
+ * `components` to be added, `model` documentation to be applied to **all**
+ * blueprint actions for the model and per-action documentation.
+ */
+export interface SwaggerModelAttribute extends SwaggerControllerAttribute {
+    modelSchema?: SwaggerModelSchemaAttribute;
+}
+/**
+ * Extend Sail attribute definition to include `meta.swagger`, including `exclude` for
+ * individual attributes.
+ */
+export interface SwaggerSailsModelAttributeDefinition extends Omit<Sails.AttributeDefinition, 'meta'> {
+    meta?: {
+        swagger?: OpenApi.UpdatedSchema & {
+            exclude?: boolean;
+        };
+        [name: string]: any;
+    };
+}
+export interface SwaggerSailsModel extends Omit<Sails.Model, 'attributes'> {
+    _identity?: string;
+    identityPlural: string;
+    hiddenAttributes: string[];
+    readOnlyAttributes: string[];
+    criteriaWhitelist?: string[];
+    fulltextColumns?: string[];
+    likeColumns?: string[];
+    populateable?: string[];
+    standardLimit?: number;
+    maximumLimit?: number;
+    jsonSchemas?: Record<string, Record<string, any>>;
+    attributes: Record<string, SwaggerSailsModelAttributeDefinition>;
+    swagger: SwaggerModelAttribute;
+    supportsHistory?: boolean;
+    logStripFields?: string[];
+}
+export interface SwaggerSailsActions2Input extends Sails.Actions2Input {
+    meta?: {
+        swagger?: (OpenApi.Parameter | OpenApi.MediaType) & {
+            in?: 'query' | 'header' | 'path' | 'cookie' | 'body';
+            exclude?: boolean;
+        };
+        [name: string]: any;
+    };
+}
+export interface SwaggerSailsActions2Exit extends Sails.Actions2Exit {
+    meta?: {
+        swagger?: OpenApi.Response & {
+            exclude?: boolean;
+        };
+        [name: string]: any;
+    };
+}
+export interface SwaggerSailsActions2Machine extends Omit<Sails.Actions2Machine, 'inputs' | 'exits'> {
+    inputs?: NameKeyMap<SwaggerSailsActions2Input>;
+    exits?: NameKeyMap<SwaggerSailsActions2Exit>;
+}
+/**
+ * All Sails controller files and actions (as loaded from disk).
+ */
+export interface SwaggerSailsControllers {
+    controllerFiles: NameKeyMap<IncludeAll.File & {
+        actionType: ActionType;
+        defaultTagName: string;
+        swagger: SwaggerControllerAttribute;
+    }>;
+    actions: NameKeyMap<(Sails.Action | SwaggerSailsActions2Machine) & {
+        actionType: ActionType;
+        defaultTagName: string;
+        swagger?: SwaggerActionAttribute;
+    }>;
+}
+interface BluePrintActionTemplate {
+    summary: string;
+    description: string;
+    externalDocs: ExternalDocs;
+    parameters: Array<'primaryKeyPathParameter' | Reference | OpenApi.Parameter>;
+    resultDescription: string;
+    notFoundDescription?: string;
+    modifiers?: Array<Modifier>;
+}
+export type BlueprintActionTemplates = {
+    [action in BluePrintAction]: BluePrintActionTemplate;
+};
+type ResponseType = 'success' | 'badRequest' | 'forbidden' | 'notFound' | 'error';
+export type Action2Response = {
+    [type in ResponseType]: {
+        statusCode: string;
+        description: string;
+    };
+};
+export type HTTPMethodVerb = 'all' | 'get' | 'post' | 'put' | 'patch' | 'delete';
+export declare enum MiddlewareType {
+    BLUEPRINT = "BLUEPRINT",//< Sails built-in blueprint middleware
+    ACTION = "ACTION"
+}
+/**
+ * Metadata relating to Sails action or blueprint action routes.
+ */
+export interface SwaggerRouteInfo {
+    middlewareType: MiddlewareType;
+    verb: HTTPMethodVerb;
+    path: string;
+    variables: string[];
+    optionalVariables: string[];
+    action: string;
+    actionType: ActionType;
+    actions2Machine?: SwaggerSailsActions2Machine;
+    model?: SwaggerSailsModel;
+    associationAliases?: string[];
+    blueprintAction?: string;
+    isShortcutBlueprintRoute?: boolean;
+    defaultTagName?: string;
+    swagger?: SwaggerActionAttribute;
+}
+export interface NameKeyMap<T> {
+    [name: string]: T;
+}
+export type AnnotatedFunction = {
+    (): Function;
+    swagger?: SwaggerActionAttribute;
+};
+export {};
